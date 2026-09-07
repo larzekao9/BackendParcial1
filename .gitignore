@@ -8,6 +8,7 @@ memory/
 # documentación oficial del proyecto)
 docs/plan-backend.md
 docs/contratos-servicios.md
+docs/plan-luisa-angel.md
 
 # Backend (Node/NestJS)
 Backend/node_modules/
@@ -18,5 +19,9 @@ Backend/*.log
 
 # SO
 .DS_Store
+
+# Salida generada por graphify (grafo de conocimiento local, no es parte
+# del código del proyecto)
+graphify-out/
 Backend/tsconfig.build.tsbuildinfo
 Backend/*.tsbuildinfo

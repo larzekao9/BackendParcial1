@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsuariosModule } from './modules/usuarios/usuarios.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { PeliculasModule } from './modules/peliculas/peliculas.module.js';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard.js';
 import { RolesGuard } from './shared/guards/roles.guard.js';
 
@@ -21,11 +22,12 @@ import { RolesGuard } from './shared/guards/roles.guard.js';
     AuthModule,
     UsuariosModule,
     HealthModule,
+    PeliculasModule, // Fase 1 (CU03) → Luisa Ángel
     // Fase 1 (fuera de este módulo raíz por ahora, cada dev agrega el suyo
     // acá cuando lo tenga listo):
-    //   PeliculasModule, SalasModule, PreciosModule, PromocionesModule → Luisa Ángel
-    //   FuncionesModule, VentasModule, ReportesModule                 → Luis Blanco
-    //   AuditModule, IaGatewayModule                                  → Roly
+    //   SalasModule, PreciosModule, PromocionesModule → Luisa Ángel
+    //   FuncionesModule, VentasModule, ReportesModule → Luis Blanco
+    //   AuditModule, IaGatewayModule                  → Roly
   ],
   providers: [
     // Guards globales: por default TODO endpoint requiere JWT válido y
