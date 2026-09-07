@@ -8,7 +8,7 @@ import type { CrearSalaDto } from './dto/crear-sala.dto.js';
 import type { ActualizarSalaDto } from './dto/actualizar-sala.dto.js';
 
 /**
- * Fase 2 — módulo `salas` + `asientos` (dominio de Luisa Ángel).
+ * Fase 2 — módulo `salas` + `asientos` (dominio de Luis Ángel).
  *
  * `eliminar` es un DELETE físico real: a diferencia de `peliculas`, la
  * tabla `salas` no tiene columna `estado`, así que no hay soft delete

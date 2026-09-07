@@ -10,7 +10,7 @@ import { Sala } from './sala.entity.js';
 
 export type TipoAsiento = 'normal' | 'preferencial';
 
-/** Mapea la tabla `asientos`. Dominio de Luisa Ángel. */
+/** Mapea la tabla `asientos`. Dominio de Luis Ángel. */
 @Entity('asientos')
 @Index(['idSala', 'fila', 'numero'], { unique: true })
 export class Asiento {

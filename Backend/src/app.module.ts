@@ -23,11 +23,11 @@ import { RolesGuard } from './shared/guards/roles.guard.js';
     AuthModule,
     UsuariosModule,
     HealthModule,
-    PeliculasModule, // Fase 1 (CU03) → Luisa Ángel
-    SalasModule, // Fase 2 (salas + asientos) → Luisa Ángel
+    PeliculasModule, // Fase 1 (CU03) → Luis Ángel
+    SalasModule, // Fase 2 (salas + asientos) → Luis Ángel
     // Fase 1 (fuera de este módulo raíz por ahora, cada dev agrega el suyo
     // acá cuando lo tenga listo):
-    //   PreciosModule, PromocionesModule → Luisa Ángel
+    //   PreciosModule, PromocionesModule → Luis Ángel
     //   FuncionesModule, VentasModule, ReportesModule → Luis Blanco
     //   AuditModule, IaGatewayModule                  → Roly
   ],

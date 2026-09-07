@@ -7,7 +7,7 @@ import {
 import { Promocion } from './promocion.entity.js';
 import { Funcion } from './funcion.entity.js';
 
-/** Mapea la tabla `promocion_funcion` (N:M). Dominio de Luisa Ángel. */
+/** Mapea la tabla `promocion_funcion` (N:M). Dominio de Luis Ángel. */
 @Entity('promocion_funcion')
 export class PromocionFuncion {
   @PrimaryColumn({ name: 'id_promocion', type: 'int' })

@@ -6,7 +6,7 @@ import type { Venta, TipoRegistroVenta } from '../database/entities/venta.entity
 import type { TipoAsiento } from '../database/entities/asiento.entity.js';
 
 /**
- * Contrato de Fase 0 — acordado entre Luisa Ángel, Luis Blanco y Roly antes
+ * Contrato de Fase 0 — acordado entre Luis Ángel, Luis Blanco y Roly antes
  * de separar el trabajo (ver docs/contratos-servicios.md). Cada interface
  * describe la firma mínima que el resto del equipo necesita para integrar
  * su módulo, SIN implementar el cuerpo: la implementación real es trabajo
@@ -20,7 +20,7 @@ import type { TipoAsiento } from '../database/entities/asiento.entity.js';
  * mitad de integración.
  */
 
-// ---- Luisa Ángel — catálogo y configuración -------------------------------
+// ---- Luis Ángel — catálogo y configuración -------------------------------
 
 export interface CrearPeliculaInput {
   titulo: string;

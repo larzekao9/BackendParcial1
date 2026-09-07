@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 export type EstadoPelicula = 'activa' | 'inactiva';
 
-/** Mapea la tabla `peliculas`. Dominio de Luisa Ángel (CU03). */
+/** Mapea la tabla `peliculas`. Dominio de Luis Ángel (CU03). */
 @Entity('peliculas')
 export class Pelicula {
   @PrimaryGeneratedColumn({ name: 'id_pelicula' })

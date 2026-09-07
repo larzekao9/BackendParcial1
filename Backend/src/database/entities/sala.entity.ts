@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-/** Mapea la tabla `salas`. Dominio de Luisa Ángel. */
+/** Mapea la tabla `salas`. Dominio de Luis Ángel. */
 @Entity('salas')
 export class Sala {
   @PrimaryGeneratedColumn({ name: 'id_sala' })

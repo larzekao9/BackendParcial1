@@ -53,7 +53,7 @@ npm run lint         # oxlint
 
 ## Qué falta (Fase 1 — ver `docs/plan-backend.md`)
 
-- **Luisa Ángel**: `peliculas`, `salas`/`asientos`, `precios`, `promociones`.
+- **Luis Ángel**: `peliculas`, `salas`/`asientos`, `precios`, `promociones`.
 - **Luis Blanco**: `funciones`, `disponibilidad_asiento`, `ventas`,
   `detalle_venta_entradas`, `reportes`.
 - **Roly**: CRUD completo de `usuarios`, `audit`, `ia-gateway`.

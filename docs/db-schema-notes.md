@@ -25,7 +25,7 @@ el script original in place, ver `.claude/agents/database.md`.
 
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
-Ninguno todavía. Cuando Luisa Ángel, Luis Blanco o Roly necesiten un campo o
+Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o
 índice nuevo en la Fase 1, se documenta acá antes de escribir la migración,
 con el nombre de archivo (`docs/migrations/00X_descripcion.sql`) y la
 justificación del patrón de acceso que la motiva.

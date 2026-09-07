@@ -8,7 +8,7 @@ memory/
 # documentación oficial del proyecto)
 docs/plan-backend.md
 docs/contratos-servicios.md
-docs/plan-luisa-angel.md
+docs/plan-luis-angel.md
 
 # Backend (Node/NestJS)
 Backend/node_modules/

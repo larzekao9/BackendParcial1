@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 export type TipoDescuento = 'porcentaje' | 'monto_fijo';
 
-/** Mapea la tabla `promociones` (CU06). Dominio de Luisa Ángel. */
+/** Mapea la tabla `promociones` (CU06). Dominio de Luis Ángel. */
 @Entity('promociones')
 export class Promocion {
   @PrimaryGeneratedColumn({ name: 'id_promocion' })

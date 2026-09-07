@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { TipoAsiento } from './asiento.entity.js';
 
-/** Mapea la tabla `precios` (CU07). Dominio de Luisa Ángel. */
+/** Mapea la tabla `precios` (CU07). Dominio de Luis Ángel. */
 @Entity('precios')
 export class Precio {
   @PrimaryGeneratedColumn({ name: 'id_precio' })
