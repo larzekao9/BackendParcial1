@@ -1,0 +1,22 @@
+# Configuración de Claude Code — no se publica en el repo del proyecto
+.claude/
+CLAUDE.md
+memory/
+.mcp.json
+
+# Documentos de planificación de la sesión (no forman parte de la
+# documentación oficial del proyecto)
+docs/plan-backend.md
+docs/contratos-servicios.md
+
+# Backend (Node/NestJS)
+Backend/node_modules/
+Backend/dist/
+Backend/.env
+Backend/coverage/
+Backend/*.log
+
+# SO
+.DS_Store
+Backend/tsconfig.build.tsbuildinfo
+Backend/*.tsbuildinfo

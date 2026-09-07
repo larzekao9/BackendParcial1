@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cine_ia_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-cine_ia}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - cine_ia_db_data:/var/lib/postgresql/data
+      # Corre base_datos_cine_ia.sql (fuente de verdad del esquema) la
+      # primera vez que se crea el volumen — nunca en corridas siguientes,
+      # así que si el esquema cambia, se aplica como migración incremental,
+      # no reseteando este archivo (ver .claude/agents/database.md).
+      - ../base_datos_cine_ia.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cine_ia_db_data:
