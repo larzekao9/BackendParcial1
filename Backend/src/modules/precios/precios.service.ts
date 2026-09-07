@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Precio } from '../../database/entities/precio.entity.js';
+import { Funcion } from '../../database/entities/funcion.entity.js';
 import type { TipoAsiento } from '../../database/entities/asiento.entity.js';
 import type { PreciosContract } from '../../contracts/service-contracts.js';
 import type { CrearPrecioDto } from './dto/crear-precio.dto.js';
@@ -22,10 +23,21 @@ import type { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
  * `Date` crudo) para que la comparación contra las columnas `date` de
  * Postgres sea consistente sin sorpresas de timezone en el driver `pg`.
  *
- * `eliminar` es un DELETE físico simple: `funciones.id_precio` tiene FK
- * con `onDelete: 'SET NULL'` (ver funcion.entity.ts), así que Postgres
- * desvincula solo cualquier función que use este precio — a diferencia de
- * `peliculas`/`salas`, acá no hace falta ningún chequeo de negocio previo.
+ * `eliminar`: CORRECCIÓN (2026-09-07) — este comentario decía que
+ * `funciones.id_precio` tenía FK con `onDelete: 'SET NULL'`, así que
+ * Postgres desvincularía solo cualquier función que use este precio sin
+ * necesidad de chequeo previo. Se verificó contra el Postgres real del
+ * contenedor `cine_ia_db` (`pg_constraint.confdeltype`) y la FK real —
+ * creada por `base_datos_cine_ia.sql`, que no declara `ON DELETE` en
+ * ninguna FK— es `NO ACTION` (`confdeltype = 'a'`), NO `SET NULL` (mismo
+ * tipo de discrepancia encontrada en `promocion_funcion`, ver
+ * docs/db-schema-notes.md, entrada "Discrepancia onDelete"). Un DELETE
+ * simple contra un precio referenciado por `funciones.id_precio` chocaría
+ * con 23503 (foreign_key_violation), que el filtro global traduce a 404
+ * con un mensaje que no describe el problema real. Por eso `eliminar`
+ * ahora chequea explícitamente si alguna función referencia este precio
+ * antes de borrar, mismo patrón que `peliculas`/`salas` con sus funciones
+ * futuras.
  *
  * `buscarPorId` lanza `NotFoundException` cuando no existe, misma
  * convención que `PeliculasService`/`SalasService`.
@@ -35,6 +47,8 @@ export class PreciosService implements PreciosContract {
   constructor(
     @InjectRepository(Precio)
     private readonly preciosRepo: Repository<Precio>,
+    @InjectRepository(Funcion)
+    private readonly funcionesRepo: Repository<Funcion>,
   ) {}
 
   async getVigente(tipoAsiento: TipoAsiento | 'VIP', fecha: Date): Promise<Precio> {
@@ -90,6 +104,14 @@ export class PreciosService implements PreciosContract {
 
   async eliminar(idPrecio: number): Promise<void> {
     await this.buscarPorId(idPrecio);
+
+    const funcionesAsociadas = await this.funcionesRepo.count({ where: { idPrecio } });
+    if (funcionesAsociadas > 0) {
+      throw new ConflictException(
+        'No se puede eliminar el precio: hay funciones que lo referencian.',
+      );
+    }
+
     await this.preciosRepo.delete({ idPrecio });
   }
 

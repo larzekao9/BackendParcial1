@@ -22,6 +22,16 @@ export type EstadoFuncion = 'programada' | 'cancelada';
  * necesita leerla, se hace con una query raw, no agregando la columna aquí.
  * El error de solapamiento (SQLSTATE 23P01) se captura en el filtro global
  * de excepciones y se traduce a 409 — ver funciones.service.ts (Fase 1).
+ *
+ * `onDelete: 'NO ACTION'` en las tres relaciones: es el default real de
+ * Postgres, `base_datos_cine_ia.sql` no declara `ON DELETE` en ninguna FK
+ * de esta tabla (ver docs/db-schema-notes.md, entrada "Discrepancia
+ * onDelete", 2026-09-07). Para `pelicula`/`sala` no cambia nada (se
+ * comporta igual que el `RESTRICT` que decía antes este comentario). Para
+ * `precio` SÍ importa: **no es `SET NULL`** — si se borra un `Precio`
+ * referenciado por `id_precio`, Postgres RECHAZA el borrado (23503), no lo
+ * desvincula solo. `PreciosService.eliminar` ya fue corregido para chequear
+ * esto antes de borrar (ver ese archivo).
  */
 @Entity('funciones')
 export class Funcion {
@@ -31,21 +41,21 @@ export class Funcion {
   @Column({ name: 'id_pelicula', type: 'int' })
   idPelicula!: number;
 
-  @ManyToOne(() => Pelicula, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Pelicula, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_pelicula' })
   pelicula?: Pelicula;
 
   @Column({ name: 'id_sala', type: 'int' })
   idSala!: number;
 
-  @ManyToOne(() => Sala, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Sala, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_sala' })
   sala?: Sala;
 
   @Column({ name: 'id_precio', type: 'int', nullable: true })
   idPrecio!: number | null;
 
-  @ManyToOne(() => Precio, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Precio, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_precio' })
   precio?: Precio;
 

@@ -19,6 +19,17 @@ export type TipoRegistroVenta = 'voz' | 'manual';
  * no puede crearse sin ambos flags en `true` (y el segundo obligatorio
  * cuando `tipoRegistro === 'voz'`) se aplica en VentasService, nunca se
  * relaja acá ni en la base.
+ *
+ * `onDelete: 'NO ACTION'` en las tres relaciones: default real de
+ * Postgres, `base_datos_cine_ia.sql` no declara `ON DELETE` en ninguna FK
+ * de esta tabla (ver docs/db-schema-notes.md, entrada "Discrepancia
+ * onDelete", 2026-09-07). OJO especialmente con `usuarioCliente` y
+ * `promocion`: **no son `SET NULL`** — borrar un `Usuario` o una
+ * `Promocion` referenciada por una venta existente hace que Postgres
+ * rechace el borrado (23503), no desvincula solo.
+ * `PromocionesService.eliminar` ya chequea esto (rechaza con 409 si hay
+ * ventas asociadas, ver ese archivo). `UsuariosService` (Roly, todavía sin
+ * construir) va a necesitar el mismo chequeo cuando exista.
  */
 @Entity('ventas')
 export class Venta {
@@ -28,21 +39,21 @@ export class Venta {
   @Column({ name: 'id_usuario_cliente', type: 'int', nullable: true })
   idUsuarioCliente!: number | null;
 
-  @ManyToOne(() => Usuario, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Usuario, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_usuario_cliente' })
   usuarioCliente?: Usuario;
 
   @Column({ name: 'id_funcion', type: 'int' })
   idFuncion!: number;
 
-  @ManyToOne(() => Funcion, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Funcion, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_funcion' })
   funcion?: Funcion;
 
   @Column({ name: 'id_promocion', type: 'int', nullable: true })
   idPromocion!: number | null;
 
-  @ManyToOne(() => Promocion, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Promocion, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_promocion' })
   promocion?: Promocion;
 

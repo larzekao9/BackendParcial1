@@ -3,6 +3,9 @@ import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PreciosService } from './precios.service.js';
 import { Precio } from '../../database/entities/precio.entity.js';
+import { Funcion } from '../../database/entities/funcion.entity.js';
+import { Pelicula } from '../../database/entities/pelicula.entity.js';
+import { Sala } from '../../database/entities/sala.entity.js';
 
 loadDotenv();
 
@@ -36,12 +39,15 @@ describe('PreciosService.getVigente — integración contra Postgres real (CU07)
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'cine_ia',
-      entities: [Precio],
+      // Funcion tiene relaciones @ManyToOne hacia Pelicula y Sala (además
+      // de Precio) — TypeORM necesita las 4 entidades registradas para
+      // resolver la metadata, aunque este test no las use directamente.
+      entities: [Precio, Funcion, Pelicula, Sala],
       synchronize: false,
     });
     await dataSource.initialize();
     repo = dataSource.getRepository(Precio);
-    service = new PreciosService(repo as never);
+    service = new PreciosService(repo as never, dataSource.getRepository(Funcion) as never);
   });
 
   afterAll(async () => {

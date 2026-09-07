@@ -1,10 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PreciosService } from './precios.service.js';
 import type { Precio } from '../../database/entities/precio.entity.js';
+import type { Funcion } from '../../database/entities/funcion.entity.js';
 import type { Repository } from 'typeorm';
 
 describe('PreciosService (CU07)', () => {
-  function buildService(overrides?: { preciosRepo?: Partial<Repository<Precio>> }) {
+  function buildService(overrides?: {
+    preciosRepo?: Partial<Repository<Precio>>;
+    funcionesRepo?: Partial<Repository<Funcion>>;
+  }) {
     const preciosRepo = {
       create: vi.fn((input) => input),
       save: vi.fn(async (entity) => ({ idPrecio: 1, ...entity })),
@@ -14,8 +18,15 @@ describe('PreciosService (CU07)', () => {
       ...overrides?.preciosRepo,
     } as unknown as Repository<Precio>;
 
-    const service = new PreciosService(preciosRepo);
-    return { service, preciosRepo };
+    // Default 0: la mayoría de los tests de `eliminar` no le interesa el
+    // caso de "precio referenciado por una función".
+    const funcionesRepo = {
+      count: vi.fn().mockResolvedValue(0),
+      ...overrides?.funcionesRepo,
+    } as unknown as Repository<Funcion>;
+
+    const service = new PreciosService(preciosRepo, funcionesRepo);
+    return { service, preciosRepo, funcionesRepo };
   }
 
   it('crear guarda el valor numérico del DTO convertido a string en la entidad', async () => {
@@ -100,7 +111,7 @@ describe('PreciosService (CU07)', () => {
     );
   });
 
-  it('eliminar borra el precio sin ningún chequeo de negocio previo (FK SET NULL)', async () => {
+  it('eliminar borra el precio cuando ninguna función lo referencia', async () => {
     const precio: Precio = {
       idPrecio: 7,
       tipoAsiento: 'VIP',
@@ -108,13 +119,31 @@ describe('PreciosService (CU07)', () => {
       vigenteDesde: '2026-01-01',
       vigenteHasta: null,
     };
-    const { service, preciosRepo } = buildService({
+    const { service, preciosRepo, funcionesRepo } = buildService({
       preciosRepo: { findOne: vi.fn().mockResolvedValue(precio) },
     });
 
     await service.eliminar(7);
 
+    expect(funcionesRepo.count).toHaveBeenCalledWith({ where: { idPrecio: 7 } });
     expect(preciosRepo.delete).toHaveBeenCalledWith({ idPrecio: 7 });
+  });
+
+  it('eliminar rechaza con ConflictException si una función referencia el precio (FK real es NO ACTION, no SET NULL)', async () => {
+    const precio: Precio = {
+      idPrecio: 8,
+      tipoAsiento: 'normal',
+      valor: '20.00',
+      vigenteDesde: '2026-01-01',
+      vigenteHasta: null,
+    };
+    const { service, preciosRepo } = buildService({
+      preciosRepo: { findOne: vi.fn().mockResolvedValue(precio) },
+      funcionesRepo: { count: vi.fn().mockResolvedValue(1) },
+    });
+
+    await expect(service.eliminar(8)).rejects.toBeInstanceOf(ConflictException);
+    expect(preciosRepo.delete).not.toHaveBeenCalled();
   });
 
   it('buscarPorId inexistente lanza NotFoundException', async () => {

@@ -10,6 +10,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { PeliculasModule } from './modules/peliculas/peliculas.module.js';
 import { SalasModule } from './modules/salas/salas.module.js';
 import { PreciosModule } from './modules/precios/precios.module.js';
+import { PromocionesModule } from './modules/promociones/promociones.module.js';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard.js';
 import { RolesGuard } from './shared/guards/roles.guard.js';
 
@@ -27,9 +28,9 @@ import { RolesGuard } from './shared/guards/roles.guard.js';
     PeliculasModule, // Fase 1 (CU03) → Luis Ángel
     SalasModule, // Fase 2 (salas + asientos) → Luis Ángel
     PreciosModule, // Fase 3 (CU07) → Luis Ángel
-    // Fase 1 (fuera de este módulo raíz por ahora, cada dev agrega el suyo
-    // acá cuando lo tenga listo):
-    //   PromocionesModule → Luis Ángel
+    PromocionesModule, // Fase 4 (CU06) → Luis Ángel
+    // Fuera de este módulo raíz por ahora, cada dev agrega el suyo acá
+    // cuando lo tenga listo:
     //   FuncionesModule, VentasModule, ReportesModule → Luis Blanco
     //   AuditModule, IaGatewayModule                  → Roly
   ],
