@@ -34,6 +34,34 @@ detectada. Segundo parcial — Ingeniería de Software 2.
 - **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`.
 - **Roly** — pendiente: `usuarios` (CRUD completo), `audit`, `ia-gateway`.
 
+## Pendiente — App móvil (Flutter) + login Google en Android
+
+**Fecha límite: defensa 2026-09-24 — para esa fecha hay que entregar prototipo
+funcional.** `mobile-app/` (Flutter) todavía no existe como proyecto — hoy solo
+están construidos `Backend/BackendParcial1/Backend` (NestJS) y `Frontend`
+(React web). El login con Google del backend (`POST /auth/google`, ver
+`docs/db-schema-notes.md` "Login con Google") ya está listo para recibirlo: no
+importa si el ID token viene de la librería web o de la de Android/Flutter, la
+verificación (`google-auth-library`) es la misma.
+
+Lo que falta, una vez exista el proyecto Flutter:
+1. Generar el keystore de firma de la app y sacar su **SHA-1**
+   (`keytool -list -v -keystore <ruta> ...` o `flutter build apk` con el
+   keystore de debug/release).
+2. Definir el **nombre de paquete** (`applicationId`, ej.
+   `com.lumen.cinema`).
+3. En Google Cloud Console, proyecto **`Parcial1-SW2-Cine`** (el mismo que ya
+   existe, no crear uno nuevo) → Google Auth Platform → Clientes → Crear
+   cliente → tipo **Android** → cargar paquete + SHA-1. El Client ID que da
+   ese cliente es SOLO para el flujo nativo de Android (Google Sign-In SDK de
+   Flutter); el backend sigue usando el mismo `GOOGLE_CLIENT_ID` (el del
+   cliente Web) como `audience` al verificar, salvo que se decida agregar
+   soporte multi-audience (ver documentación de `google-auth-library`,
+   `verifyIdToken` acepta un array de audiences válidos).
+4. Agregar el correo de cada tester como "usuario de prueba" en Público /
+   Audiencia si el consent screen sigue en modo Prueba (mismo paso que ya se
+   hizo para el cliente Web).
+
 ## Dónde vive cada cosa (punteros — leé antes de duplicar)
 
 | Tema | Archivo |
