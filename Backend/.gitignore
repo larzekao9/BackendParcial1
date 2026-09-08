@@ -3,4 +3,8 @@ dist/
 .env
 *.log
 coverage/
+
+# Credenciales descargadas de Google Cloud (contienen client_secret real,
+# no confundir con GOOGLE_CLIENT_ID del .env que sí es público).
+client_secret_*.json
 .DS_Store
