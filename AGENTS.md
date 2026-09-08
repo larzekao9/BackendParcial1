@@ -1,0 +1,79 @@
+# AGENTS.md — Contexto compartido para agentes
+
+Documento único de contexto para **toda herramienta o subagente** que trabaje en
+este repo. No es la fuente de verdad exhaustiva: cuanto más detalle necesites,
+seguí los punteros de abajo. Regla de oro: **no dupliques** — si un dato ya vive
+en `CLAUDE.md`, `docs/*` o `Backend/README.md`, referenciá y no lo copies acá.
+
+---
+
+## Qué es este proyecto
+
+Sistema de venta y gestión de un cine donde la interacción principal es **voz**
+(cliente compra entradas; admin gestiona cartelera, funciones y reportes), con una
+capa de **UI generativa** que renderiza widgets dinámicos según la intención
+detectada. Segundo parcial — Ingeniería de Software 2.
+
+## Stack
+
+| Componente | Tecnología | Estado |
+|---|---|---|
+| Backend de negocio | NestJS (TypeScript) | **En desarrollo** (`Backend/`) |
+| Frontend admin | React (`web-admin/`) | No existe todavía |
+| App móvil cliente | Flutter (`mobile-app/`) | No existe todavía |
+| Servicio de IA (voz/NLU) | FastAPI (`ai-service/`) | No existe todavía |
+| Base de datos | PostgreSQL vía Supabase | Esquema en `base_datos_cine_ia.sql` |
+
+## Estado actual del backend
+
+- **Fase 0 (fundaciones)** — completa: scaffold NestJS, 13 entidades TypeORM 1:1 con
+  el esquema, guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
+  `ValidationPipe` y `HttpExceptionFilter` globales, login simplificado.
+- **Luis Ángel** — completo (47/47 tests): `peliculas`, `salas`+`asientos`, `precios`,
+  `promociones`. Ver `docs/plan-luis-angel.md`.
+- **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`.
+- **Roly** — pendiente: `usuarios` (CRUD completo), `audit`, `ia-gateway`.
+
+## Dónde vive cada cosa (punteros — leé antes de duplicar)
+
+| Tema | Archivo |
+|---|---|
+| Contexto y convenciones generales del repo | `CLAUDE.md` (raíz) |
+| Requisitos funcionales (19 RF, 6 módulos, casos de uso) | `CLAUDE.md` (sección dominio) y `Requisitos_Funcionales_Parcial1.docx` |
+| Modelo de datos / esquema SQL | `base_datos_cine_ia.sql` (raíz) y `Base_1Parcial.md` |
+| Decisiones de esquema y migraciones | `docs/db-schema-notes.md` |
+| Reparto de trabajo del backend (4 semanas) | `docs/plan-backend.md` |
+| Plan detallado de Luis Ángel (fases 1–5) | `docs/plan-luis-angel.md` |
+| Contratos de servicios entre módulos | `docs/contratos-servicios.md` y `Backend/src/contracts/service-contracts.ts` |
+| Cómo arrancar y testear el backend | `Backend/README.md` |
+| Definiciones de los 6 subagentes | `.claude/agents/*.md` |
+| Memoria de decisiones previas | `memory/*` |
+
+## Reglas de arquitectura NO negociables (resumen)
+
+Lee la sección completa en `CLAUDE.md`. Lo esencial:
+
+1. **La IA nunca escribe directo en la base de datos.** Interpreta → propone →
+   pide confirmación → el backend NestJS ejecuta y devuelve el resultado real (RF10).
+2. **Toda compra/gestión pasa por confirmación explícita** antes de tocar la base
+   (no-reembolso RF03, double-check RF19, confirmación de cambios RF06/RF07).
+3. **El rol se resuelve antes de habilitar funciones** (RF11).
+4. **STT/TTS corren localmente**, sin nube (RF13); el modelo se intercambia por nivel
+   de despliegue sin cambiar el contrato (RF15).
+5. **El modo sin pantalla es el piso**, no un extra (RF16).
+6. **Toda mutación de gestión escribe en `log_acciones`** (RF12).
+7. **La ambigüedad se resuelve preguntando, no adivinando** (RF09).
+
+## Reglas de trabajo
+
+- **Esquema:** cualquier cambio se hace como migración versionada, nunca editando
+  `base_datos_cine_ia.sql` in place. FK sin `ON DELETE` = `NO ACTION` (ninguna cascada
+  ni desvincula sola); ver `docs/db-schema-notes.md`.
+- **Contratos:** quien implemente un service lo declara `implements <Contract>`; si
+  cambia una firma, avisa al resto **antes** (ver `docs/contratos-servicios.md`).
+- **Tests:** `npm run test` (unitarios, vitest), `npm run test:e2e` (requiere Postgres),
+  `npm run lint` (oxlint) — dentro de `Backend/`.
+- **Commits:** **no** agregar línea `Co-Authored-By` (ver `memory/feedback_no_coauthor.md`).
+- **Subagentes:** `backend-nestjs` para módulos de negocio/`ia-gateway`/auditoría;
+  `ai-voice` para FastAPI; `frontend-react` para `web-admin`; `database` para esquema;
+  `devops-infra` para Docker/CI; `qa-reviewer` para los 4 flujos críticos.

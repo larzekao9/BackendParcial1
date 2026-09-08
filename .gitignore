@@ -23,5 +23,10 @@ Backend/*.log
 # Salida generada por graphify (grafo de conocimiento local, no es parte
 # del código del proyecto)
 graphify-out/
+
+# Repo de OTRO trabajo grupal (Taller SW2, ajedrez), clonado localmente en
+# esta carpeta por error/aparte — no es parte del Sistema de Cine, nunca se
+# sube a este repo.
+ProyectGrupal_Taller_SW2_Frontend/
 Backend/tsconfig.build.tsbuildinfo
 Backend/*.tsbuildinfo
