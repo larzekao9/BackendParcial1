@@ -38,6 +38,10 @@ describe('SalasService (Fase 2)', () => {
         return data;
       }),
       delete: vi.fn().mockResolvedValue({ affected: 1 }),
+      // Simula el catálogo `tipos_asiento`: SalasService busca el id de
+      // 'normal' antes de generar los asientos (ver
+      // SalasService.obtenerIdTipoAsientoDefault).
+      findOne: vi.fn().mockResolvedValue({ idTipoAsiento: 1, nombre: 'normal' }),
       ...overrides?.manager,
     };
 
@@ -52,7 +56,7 @@ describe('SalasService (Fase 2)', () => {
   function asientosGuardadosEn(manager: { save: ReturnType<typeof vi.fn> }): Array<{
     fila: string;
     numero: number;
-    tipo: string;
+    idTipoAsiento: number;
   }> {
     const llamada = manager.save.mock.calls.find(([entity]: [unknown]) => entity === Asiento);
     return llamada?.[1] ?? [];
@@ -75,7 +79,7 @@ describe('SalasService (Fase 2)', () => {
     expect(filaC).toHaveLength(5);
     expect(filaA.map((a) => a.numero)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(filaC.map((a) => a.numero)).toEqual([1, 2, 3, 4, 5]);
-    expect(asientos.every((a) => a.tipo === 'normal')).toBe(true);
+    expect(asientos.every((a) => a.idTipoAsiento === 1)).toBe(true);
   });
 
   it('crear con capacidad=10 y asientosPorFila por default (10) genera exactamente 1 fila de 10', async () => {

@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Precio } from '../../database/entities/precio.entity.js';
 import { Funcion } from '../../database/entities/funcion.entity.js';
-import type { TipoAsiento } from '../../database/entities/asiento.entity.js';
 import type { PreciosContract } from '../../contracts/service-contracts.js';
 import type { CrearPrecioDto } from './dto/crear-precio.dto.js';
 import type { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
@@ -22,6 +21,12 @@ import type { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
  * QueryBuilder. La fecha se pasa como string `YYYY-MM-DD` (no un objeto
  * `Date` crudo) para que la comparación contra las columnas `date` de
  * Postgres sea consistente sin sorpresas de timezone en el driver `pg`.
+ *
+ * `getVigente`/`crear`: CORRECCIÓN (2026-09-07) — usaban una columna
+ * `tipoAsiento` (varchar) que mapeaba el esquema previo a la normalización
+ * de `tipos_asiento`; esa columna ya no existe en la base real, se
+ * reemplaza por `idTipoAsiento` (FK). Ver docs/db-schema-notes.md, entrada
+ * "Normalización tipos_asiento".
  *
  * `eliminar`: CORRECCIÓN (2026-09-07) — este comentario decía que
  * `funciones.id_precio` tenía FK con `onDelete: 'SET NULL'`, así que
@@ -51,12 +56,12 @@ export class PreciosService implements PreciosContract {
     private readonly funcionesRepo: Repository<Funcion>,
   ) {}
 
-  async getVigente(tipoAsiento: TipoAsiento | 'VIP', fecha: Date): Promise<Precio> {
+  async getVigente(idTipoAsiento: number, fecha: Date): Promise<Precio> {
     const fechaIso = PreciosService.formatearFecha(fecha);
 
     const precio = await this.preciosRepo
       .createQueryBuilder('precio')
-      .where('precio.tipoAsiento = :tipoAsiento', { tipoAsiento })
+      .where('precio.idTipoAsiento = :idTipoAsiento', { idTipoAsiento })
       .andWhere('precio.vigenteDesde <= :fecha', { fecha: fechaIso })
       .andWhere(
         '(precio.vigenteHasta IS NULL OR precio.vigenteHasta >= :fecha)',
@@ -67,7 +72,7 @@ export class PreciosService implements PreciosContract {
 
     if (!precio) {
       throw new NotFoundException(
-        `No hay precio vigente para '${tipoAsiento}' en esa fecha.`,
+        `No hay precio vigente para el tipo de asiento ${idTipoAsiento} en esa fecha.`,
       );
     }
     return precio;
@@ -75,7 +80,7 @@ export class PreciosService implements PreciosContract {
 
   async crear(dto: CrearPrecioDto): Promise<Precio> {
     const precio = this.preciosRepo.create({
-      tipoAsiento: dto.tipoAsiento,
+      idTipoAsiento: dto.idTipoAsiento,
       valor: dto.valor.toString(),
       vigenteDesde: dto.vigenteDesde,
       vigenteHasta: dto.vigenteHasta ?? null,

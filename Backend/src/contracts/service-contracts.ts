@@ -3,7 +3,6 @@ import type { Precio } from '../database/entities/precio.entity.js';
 import type { Promocion } from '../database/entities/promocion.entity.js';
 import type { Funcion, EstadoFuncion } from '../database/entities/funcion.entity.js';
 import type { Venta, TipoRegistroVenta } from '../database/entities/venta.entity.js';
-import type { TipoAsiento } from '../database/entities/asiento.entity.js';
 
 /**
  * Contrato de Fase 0 — acordado entre Luis Ángel, Luis Blanco y Roly antes
@@ -38,8 +37,11 @@ export interface PeliculasContract {
 }
 
 export interface PreciosContract {
-  /** Precio vigente de un tipo de asiento para una fecha dada. Lo consume VentasService. */
-  getVigente(tipoAsiento: TipoAsiento | 'VIP', fecha: Date): Promise<Precio>;
+  /**
+   * Precio vigente de un tipo de asiento (FK `id_tipo_asiento`, tabla
+   * `tipos_asiento`) para una fecha dada. Lo consume VentasService.
+   */
+  getVigente(idTipoAsiento: number, fecha: Date): Promise<Precio>;
 }
 
 export interface PromocionesContract {

@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsNumber, IsOptional, IsPositive } from 'class-validator';
+import { IsDateString, IsInt, IsNumber, IsOptional, IsPositive } from 'class-validator';
 
 /**
  * `valor` viaja como `number` en el DTO (más natural para el body JSON y
@@ -6,10 +6,17 @@ import { IsDateString, IsIn, IsNumber, IsOptional, IsPositive } from 'class-vali
  * `string` — Postgres es `numeric` y TypeORM lo tipa así para no perder
  * precisión (ver comentario en `precio.entity.ts`). La conversión
  * `.toString()` se hace en `PreciosService.crear`, no acá.
+ *
+ * `idTipoAsiento` es el id de `tipos_asiento` (normal/preferencial/VIP) —
+ * antes era un string libre (`tipoAsiento`), corregido junto con la
+ * entidad `Precio` (ver docs/db-schema-notes.md, "Normalización
+ * tipos_asiento"). No se valida contra la lista fija de nombres acá: es
+ * una FK real, Postgres rechaza un id inexistente con 23503.
  */
 export class CrearPrecioDto {
-  @IsIn(['normal', 'preferencial', 'VIP'])
-  tipoAsiento!: 'normal' | 'preferencial' | 'VIP';
+  @IsInt()
+  @IsPositive()
+  idTipoAsiento!: number;
 
   @IsNumber()
   @IsPositive()

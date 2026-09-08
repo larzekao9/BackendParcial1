@@ -19,6 +19,8 @@ export interface AppConfig {
     /** Segundos. Ver env.validation.ts para por qué no es un string tipo "8h". */
     expiresInSeconds: number;
   };
+  /** Audience esperado al verificar el ID token de Google — ver auth.service.ts. */
+  googleClientId: string;
   nivelDespliegue: 'servidor_local' | 'maquina_local' | 'movil_ligero';
 }
 
@@ -37,6 +39,7 @@ export default (): AppConfig => ({
     secret: process.env.JWT_SECRET ?? '',
     expiresInSeconds: parseInt(process.env.JWT_EXPIRES_IN_SECONDS ?? '28800', 10),
   },
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
   nivelDespliegue:
     (process.env.NIVEL_DESPLIEGUE as AppConfig['nivelDespliegue']) ??
     'servidor_local',

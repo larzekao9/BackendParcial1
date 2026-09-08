@@ -1,8 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Sala } from '../../database/entities/sala.entity.js';
 import { Asiento } from '../../database/entities/asiento.entity.js';
+import { TipoAsiento } from '../../database/entities/tipo-asiento.entity.js';
 import { Funcion } from '../../database/entities/funcion.entity.js';
 import type { CrearSalaDto } from './dto/crear-sala.dto.js';
 import type { ActualizarSalaDto } from './dto/actualizar-sala.dto.js';
@@ -31,7 +32,7 @@ import type { ActualizarSalaDto } from './dto/actualizar-sala.dto.js';
 @Injectable()
 export class SalasService {
   private static readonly ASIENTOS_POR_FILA_DEFAULT = 10;
-  private static readonly TIPO_ASIENTO_DEFAULT = 'normal' as const;
+  private static readonly NOMBRE_TIPO_ASIENTO_DEFAULT = 'normal' as const;
 
   constructor(
     @InjectRepository(Sala)
@@ -58,10 +59,12 @@ export class SalasService {
       });
       const salaGuardada = await manager.save(Sala, sala);
 
+      const idTipoAsientoDefault = await this.obtenerIdTipoAsientoDefault(manager);
       const asientos = this.generarAsientos(
         salaGuardada.idSala,
         dto.capacidad,
         asientosPorFila,
+        idTipoAsientoDefault,
       );
       if (asientos.length > 0) {
         await manager.save(Asiento, asientos);
@@ -69,6 +72,25 @@ export class SalasService {
 
       return salaGuardada;
     });
+  }
+
+  /**
+   * `tipos_asiento` es un catálogo sembrado una sola vez por
+   * `base_datos_cine_ia_completa.sql` ('normal', 'preferencial', 'VIP') —
+   * de solo lectura para este módulo. Se busca por `nombre` en vez de
+   * asumir `id_tipo_asiento` fijo para no depender del orden de inserción
+   * del seed.
+   */
+  private async obtenerIdTipoAsientoDefault(manager: EntityManager): Promise<number> {
+    const tipo = await manager.findOne(TipoAsiento, {
+      where: { nombre: SalasService.NOMBRE_TIPO_ASIENTO_DEFAULT },
+    });
+    if (!tipo) {
+      throw new ConflictException(
+        `No existe el tipo de asiento '${SalasService.NOMBRE_TIPO_ASIENTO_DEFAULT}' en el catálogo tipos_asiento.`,
+      );
+    }
+    return tipo.idTipoAsiento;
   }
 
   async actualizar(idSala: number, dto: ActualizarSalaDto): Promise<Sala> {
@@ -135,6 +157,7 @@ export class SalasService {
     idSala: number,
     capacidad: number,
     asientosPorFila: number,
+    idTipoAsiento: number,
   ): Partial<Asiento>[] {
     const asientos: Partial<Asiento>[] = [];
     const totalFilas = Math.ceil(capacidad / asientosPorFila);
@@ -149,7 +172,7 @@ export class SalasService {
           idSala,
           fila,
           numero,
-          tipo: SalasService.TIPO_ASIENTO_DEFAULT,
+          idTipoAsiento,
         });
       }
 
