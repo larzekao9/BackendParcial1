@@ -2,6 +2,7 @@ import { Usuario } from './usuario.entity.js';
 import { Pelicula } from './pelicula.entity.js';
 import { Sala } from './sala.entity.js';
 import { Asiento } from './asiento.entity.js';
+import { TipoAsiento } from './tipo-asiento.entity.js';
 import { Precio } from './precio.entity.js';
 import { Funcion } from './funcion.entity.js';
 import { DisponibilidadAsiento } from './disponibilidad-asiento.entity.js';
@@ -17,6 +18,7 @@ export {
   Pelicula,
   Sala,
   Asiento,
+  TipoAsiento,
   Precio,
   Funcion,
   DisponibilidadAsiento,
@@ -34,6 +36,7 @@ export const ENTITIES = [
   Pelicula,
   Sala,
   Asiento,
+  TipoAsiento,
   Precio,
   Funcion,
   DisponibilidadAsiento,

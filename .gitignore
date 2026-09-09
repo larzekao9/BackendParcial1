@@ -17,6 +17,17 @@ Backend/.env
 Backend/coverage/
 Backend/*.log
 
+# Credenciales (Google Cloud, Android/Flutter cuando exista mobile-app/) —
+# nunca se suben, sin importar en qué carpeta del repo aparezcan.
+client_secret_*.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
+key.properties
+*.p12
+*.pem
+
 # SO
 .DS_Store
 

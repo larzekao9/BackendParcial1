@@ -23,4 +23,27 @@ export class UsuariosService {
   async findById(idUsuario: number): Promise<Usuario | null> {
     return this.usuariosRepo.findOne({ where: { idUsuario } });
   }
+
+  async findByEmail(email: string): Promise<Usuario | null> {
+    return this.usuariosRepo.findOne({ where: { email } });
+  }
+
+  /**
+   * Alta por login con Google (ver docs/db-schema-notes.md, "Login con
+   * Google") — siempre `rol: 'cliente'`, nunca se llama con otro rol.
+   */
+  async crearDesdeGoogle(datos: {
+    nombre: string;
+    email: string;
+    googleId: string;
+  }): Promise<Usuario> {
+    const usuario = this.usuariosRepo.create({
+      nombre: datos.nombre,
+      rol: 'cliente',
+      metodoAuth: 'google',
+      email: datos.email,
+      googleId: datos.googleId,
+    });
+    return this.usuariosRepo.save(usuario);
+  }
 }

@@ -66,6 +66,65 @@ limpiar las filas dependientes dentro de una transacción antes del DELETE
 (patrón `promocion_funcion` en `PromocionesService.eliminar`). Nunca asumir
 que Postgres lo hace solo.
 
+## Normalización tipos_asiento — código desincronizado de producción (2026-09-07)
+
+**Hallazgo:** `base_datos_cine_ia_completa.sql` (fuente de verdad actual, ya
+aplicada en la Supabase real) normalizó `asientos.tipo` y `precios.tipo_asiento`
+(ambas `VARCHAR` libres en el esquema anterior, `base_datos_cine_ia.sql`) a una
+FK `id_tipo_asiento` hacia el catálogo `tipos_asiento`. Se verificó contra la
+Supabase real con `information_schema.columns`: ninguna de las dos columnas
+`VARCHAR` existe ya ahí.
+
+El código (entidades `Asiento`/`Precio`, `PreciosContract`, `PreciosService`,
+los DTOs de `precios` y `SalasService.generarAsientos`), committeado en las
+fases "Luis Ángel — salas/precios" antes de esa normalización, seguía
+escribiendo/leyendo las columnas viejas. Contra la Supabase real esto
+rompía en runtime (`column "tipo"`/`"tipo_asiento" does not exist`) en
+`POST /salas`, y en todo `/precios` (`getVigente`, `crear`).
+
+**Corregido (2026-09-07):** las cinco piezas de arriba ahora usan
+`idTipoAsiento` (FK real). `SalasService` resuelve el id de `'normal'`
+consultando el catálogo `tipos_asiento` por `nombre` (nunca un id fijo
+hardcodeado) antes de generar los asientos de una sala nueva.
+
+**Regla para el resto del equipo:** cuando `base_datos_cine_ia_completa.sql`
+cambie (nueva columna, tabla o FK) y ya esté aplicado en Supabase, el cambio
+no está "terminado" hasta que también se actualicen: la entidad TypeORM
+afectada, cualquier DTO que exponga esa columna, el service que la usa, y
+(si aplica) el contrato en `src/contracts/service-contracts.ts`. `synchronize:
+false` significa que TypeORM nunca avisa solo de este desfase — un mismatch
+así se descubre recién en runtime contra la base real, o corriendo los tests
+de integración (`*.integration.spec.ts`) contra ella.
+
+## Login con Google (2026-09-08)
+
+**Cambio de esquema:** se agregaron a `usuarios` las columnas `email
+VARCHAR(255) UNIQUE` y `google_id VARCHAR(255) UNIQUE`, ambas nullable —
+las filas creadas por el login simplificado (Fase 0, `nombre`+`rol`) no
+tienen ninguna de las dos. Aplicado con `ALTER TABLE ... ADD COLUMN IF NOT
+EXISTS` directo contra la Supabase real (mismas credenciales de `.env`) y
+reflejado en `base_datos_cine_ia_completa.sql` para que el script siga
+siendo el estado final real del esquema.
+
+**Motivación:** requisito del cliente — login con cuenta de Google además
+del login simplificado ya existente, para la parte de cliente/comprador.
+`AuthService.login` (nombre+rol) no se toca ni se retira; sigue
+funcionando igual, principalmente para administradores.
+
+**Decisión de rol:** el auto-registro por Google **siempre** asigna
+`rol='cliente'`. No existe ningún flujo por el que Google login otorgue
+`rol='administrador'` — los administradores se siguen creando aparte
+(hoy, vía el login simplificado con una fila ya sembrada en `usuarios`).
+Esto es deliberado: de lo contrario cualquier cuenta de Gmail podría
+auto-asignarse acceso de administrador, rompiendo RF11.
+
+**Flujo:** `POST /auth/google` recibe el ID token que ya emitió Google
+Identity Services en el frontend, lo verifica server-side con
+`google-auth-library` (audience = `GOOGLE_CLIENT_ID`, nunca se confía en
+lo que mande el cliente), busca `usuarios` por `email`; si no existe, lo
+crea (`rol='cliente'`, `metodo_auth='google'`) y firma el mismo JWT que
+ya emite `POST /auth/login`.
+
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
 Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o
