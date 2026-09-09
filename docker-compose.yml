@@ -1,0 +1,55 @@
+# Orquesta backend (NestJS) + frontend (React/Vite) juntos, bajo un solo
+# proyecto de Docker Compose: "parcial1-sw2".
+#
+# OJO — este archivo asume que los dos repos están clonados uno al lado del
+# otro dentro de esta misma carpeta ("parcial 1/Backend" y
+# "parcial 1/Parcial1_Sw2_Frontend"), como está ahora mismo en esta máquina.
+# Son dos repos de git independientes (cada uno con su propio remoto) — este
+# compose no los une ni los versiona juntos, solo los corre juntos acá.
+#
+# El backend se conecta a Supabase real (ver Backend/.env, no versionado),
+# no a un Postgres local — no hace falta un servicio `db` acá.
+#
+# Uso:
+#   docker compose up --build
+#   Frontend: http://localhost:3000   Backend: http://localhost:3333/api
+
+name: parcial1-sw2
+
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: parcial1_sw2_backend
+    env_file:
+      - ./Backend/.env
+    environment:
+      # El .env trae PORT=3333 pero lo reafirmamos acá por claridad del
+      # mapeo de puertos de abajo.
+      PORT: 3333
+    ports:
+      - '3333:3333'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Parcial1_Sw2_Frontend
+      dockerfile: Dockerfile
+    container_name: parcial1_sw2_frontend
+    environment:
+      # Corre en el navegador del host, así que apunta al puerto publicado
+      # en localhost, no al nombre del servicio Docker (`backend`) — el
+      # browser no está dentro de la red de Compose.
+      VITE_API_URL: http://localhost:3333/api
+      # Sin credencial real de Google Cloud a mano en este entorno — el
+      # botón de login con Google no va a funcionar hasta que se defina un
+      # VITE_GOOGLE_CLIENT_ID real (mismo Client ID que GOOGLE_CLIENT_ID del
+      # backend). Exportalo en el shell antes de `docker compose up` para
+      # sobreescribir este default vacío.
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    restart: unless-stopped

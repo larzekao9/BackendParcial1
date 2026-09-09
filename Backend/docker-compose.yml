@@ -11,11 +11,14 @@ services:
       - '${DB_PORT:-5432}:5432'
     volumes:
       - cine_ia_db_data:/var/lib/postgresql/data
-      # Corre base_datos_cine_ia.sql (fuente de verdad del esquema) la
-      # primera vez que se crea el volumen — nunca en corridas siguientes,
-      # así que si el esquema cambia, se aplica como migración incremental,
-      # no reseteando este archivo (ver .claude/agents/database.md).
-      - ../base_datos_cine_ia.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      # Corre base_datos_cine_ia_completa.sql (fuente de verdad del esquema,
+      # ver docs/db-schema-notes.md) la primera vez que se crea el volumen —
+      # nunca en corridas siguientes. El nombre anterior de este archivo era
+      # base_datos_cine_ia.sql (sin "_completa"); se renombró al consolidar
+      # las migraciones 002-004, así que si el volumen ya existe de una
+      # corrida vieja, hay que recrearlo para que tome el esquema nuevo
+      # (`docker compose down -v` y volver a levantar).
+      - ../base_datos_cine_ia_completa.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
       interval: 5s

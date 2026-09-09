@@ -18,11 +18,34 @@ Backend/.env*
 Backend/coverage/
 Backend/*.log
 
+# Credenciales (Google Cloud, Android/Flutter cuando exista mobile-app/) —
+# nunca se suben, sin importar en qué carpeta del repo aparezcan.
+client_secret_*.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
+key.properties
+*.p12
+*.pem
+
 # SO
 .DS_Store
 
 # Salida generada por graphify (grafo de conocimiento local, no es parte
 # del código del proyecto)
 graphify-out/
+
+# Repo de OTRO trabajo grupal (Taller SW2, ajedrez), clonado localmente en
+# esta carpeta por error/aparte — no es parte del Sistema de Cine, nunca se
+# sube a este repo. (Ya se borró del disco, se deja el patrón por si se
+# vuelve a clonar por error.)
+ProyectGrupal_Taller_SW2_Frontend/
+
+# Frontend de ESTE parcial, pero en su propio repo con su propio remoto
+# (github.com/hebertsb/Parcial1_Sw2_Frontend) — nunca se anida dentro de
+# BackendParcial1 (repo de submódulo/nested nunca se agrega con `git add`
+# directo). Clonado acá solo como referencia local/para graphify.
+Parcial1_Sw2_Frontend/
 Backend/tsconfig.build.tsbuildinfo
 Backend/*.tsbuildinfo

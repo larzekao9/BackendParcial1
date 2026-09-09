@@ -4,4 +4,16 @@ dist/
 !.env.example
 *.log
 coverage/
+
+# Credenciales descargadas de Google Cloud (contienen client_secret real,
+# no confundir con GOOGLE_CLIENT_ID del .env que sí es público) y, a
+# futuro, credenciales de Android/Flutter cuando exista mobile-app/.
+client_secret_*.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
+key.properties
+*.p12
+*.pem
 .DS_Store

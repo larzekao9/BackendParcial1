@@ -7,6 +7,7 @@ import { Funcion } from '../../database/entities/funcion.entity.js';
 import { Pelicula } from '../../database/entities/pelicula.entity.js';
 import { Sala } from '../../database/entities/sala.entity.js';
 import { Precio } from '../../database/entities/precio.entity.js';
+import { TipoAsiento } from '../../database/entities/tipo-asiento.entity.js';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { Usuario } from '../../database/entities/usuario.entity.js';
 
@@ -54,7 +55,22 @@ describe('PromocionesService.getAplicable — integración contra Postgres real 
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'cine_ia',
-      entities: [Promocion, PromocionFuncion, Funcion, Pelicula, Sala, Precio, Venta, Usuario],
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      // `Precio` tiene una relación @ManyToOne hacia `TipoAsiento` (ver
+      // docs/db-schema-notes.md, "Normalización tipos_asiento") — TypeORM
+      // necesita esa entidad registrada para resolver la metadata de
+      // `Precio`, aunque este test no la use directamente.
+      entities: [
+        Promocion,
+        PromocionFuncion,
+        Funcion,
+        Pelicula,
+        Sala,
+        Precio,
+        TipoAsiento,
+        Venta,
+        Usuario,
+      ],
       synchronize: false,
     });
     await dataSource.initialize();
