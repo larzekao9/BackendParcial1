@@ -22,7 +22,7 @@ detectada. Segundo parcial — Ingeniería de Software 2.
 | Frontend | React + Vite + Tailwind (`Parcial1_Sw2_Frontend/`, repo separado de `hebertsb`) | Mockup visual, sin conexión real al backend |
 | App móvil cliente | Flutter (`mobile-app/`) | No existe todavía |
 | Servicio de IA (voz/NLU) | FastAPI (`ai-service/`) | No existe todavía |
-| Base de datos | PostgreSQL vía Supabase | Esquema en `base_datos_cine_ia.sql` |
+| Base de datos | PostgreSQL vía Supabase | Esquema en `base_datos_cine_ia_completa.sql` |
 
 **Discrepancia de contrato sin resolver**: el frontend llama a
 `POST /auth/google` con `{ idToken }` (login con Google). El backend real
@@ -32,19 +32,24 @@ equipos.
 
 ## Estado actual del backend
 
-- **Fase 0 (fundaciones)** — completa: scaffold NestJS, 13 entidades TypeORM 1:1 con
-  el esquema, guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
-  `ValidationPipe` y `HttpExceptionFilter` globales, login simplificado.
-- **Luis Ángel** — completo (47/47 tests): `peliculas`, `salas`+`asientos`, `precios`,
-  `promociones`. Ver `docs/plan-luis-angel.md`.
-- **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`.
+- **Fase 0 (fundaciones)** — completa: scaffold NestJS, entidades TypeORM 1:1 con
+  el esquema (18 tablas tras la normalización de `tipos_asiento` y el agregado de
+  `pagos`/dulcería), guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
+  `ValidationPipe` y `HttpExceptionFilter` globales, login simplificado + login con Google.
+- **Luis Ángel** — completo y verificado tras la migración a `tipos_asiento` (51/51 tests):
+  `peliculas`, `salas`+`asientos`, `precios`, `promociones`. Pendiente NUEVO (agregado por
+  esta actualización de esquema, no estaba en el plan original): CRUD propio de
+  `tipos_asiento` y módulo `dulceria` (CU09/RF20). Ver `docs/plan-luis-angel.md` y
+  `docs/plan-backend.md`.
+- **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`, y `pagos` (nuevo:
+  Stripe + QR + webhook, ver `docs/plan-backend.md`).
 - **Roly** — pendiente: `usuarios` (CRUD completo), `audit`, `ia-gateway`.
 
 ## Pendiente — App móvil (Flutter) + login Google en Android
 
 **Fecha límite: defensa 2026-09-24 — para esa fecha hay que entregar prototipo
 funcional.** `mobile-app/` (Flutter) todavía no existe como proyecto — hoy solo
-están construidos `Backend/BackendParcial1/Backend` (NestJS) y `Frontend`
+están construidos `Backend/` (NestJS) y `Parcial1_Sw2_Frontend/`
 (React web). El login con Google del backend (`POST /auth/google`, ver
 `docs/db-schema-notes.md` "Login con Google") ya está listo para recibirlo: no
 importa si el ID token viene de la librería web o de la de Android/Flutter, la
@@ -73,8 +78,8 @@ Lo que falta, una vez exista el proyecto Flutter:
 | Tema | Archivo |
 |---|---|
 | Contexto y convenciones generales del repo | `CLAUDE.md` (raíz) |
-| Requisitos funcionales (19 RF, 6 módulos, casos de uso) | `CLAUDE.md` (sección dominio) y `Requisitos_Funcionales_Parcial1.docx` |
-| Modelo de datos / esquema SQL | `base_datos_cine_ia.sql` (raíz) y `Base_1Parcial.md` |
+| Requisitos funcionales y casos de uso (versión final, incluye RF20/CU09 dulcería) | `Requisitos_Funcionales_y_Casos_de_Uso_FINAL.docx` (reemplazó a `Requisitos_Funcionales_Parcial1.docx`) |
+| Modelo de datos / esquema SQL (única fuente de verdad, incluye tipos_asiento/pagos/dulcería) | `base_datos_cine_ia_completa.sql` (reemplazó a `base_datos_cine_ia.sql` y `Base_1Parcial.md`) |
 | Decisiones de esquema y migraciones | `docs/db-schema-notes.md` |
 | Reparto de trabajo del backend (4 semanas) | `docs/plan-backend.md` |
 | Plan detallado de Luis Ángel (fases 1–5) | `docs/plan-luis-angel.md` |
@@ -101,7 +106,7 @@ Lee la sección completa en `CLAUDE.md`. Lo esencial:
 ## Reglas de trabajo
 
 - **Esquema:** cualquier cambio se hace como migración versionada, nunca editando
-  `base_datos_cine_ia.sql` in place. FK sin `ON DELETE` = `NO ACTION` (ninguna cascada
+  `base_datos_cine_ia_completa.sql` in place. FK sin `ON DELETE` = `NO ACTION` (ninguna cascada
   ni desvincula sola); ver `docs/db-schema-notes.md`.
 - **Contratos:** quien implemente un service lo declara `implements <Contract>`; si
   cambia una firma, avisa al resto **antes** (ver `docs/contratos-servicios.md`).

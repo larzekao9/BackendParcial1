@@ -1,6 +1,6 @@
 # Plan de implementación — Backend (NestJS)
 
-Reparto del trabajo de `backend/` entre **Luisa Ángel**, **Luis Blanco** y **Roly**, agente
+Reparto del trabajo de `backend/` entre **Luis Ángel**, **Luis Blanco** y **Roly**, agente
 sugerido: `backend-nestjs` (ver `.claude/agents/backend-nestjs.md`) para las tres personas,
 con `qa-reviewer` en modo WATCH corriendo en paralelo desde la Fase 1.
 
@@ -12,7 +12,7 @@ al final del trabajo de Roly, no al principio.
 > **Actualización:** se agregaron las migraciones `002` (ciclo de vida de funciones), `003`
 > (pagos) y `004` (normalización de `tipos_asiento`) sobre el esquema original. Esto añade
 > el módulo `pagos` (antes sin dueño asignado) al trabajo de Luis Blanco, y una tabla nueva
-> y pequeña (`tipos_asiento`) al de Luisa Ángel. Ver detalle en cada sección.
+> y pequeña (`tipos_asiento`) al de Luis Ángel. Ver detalle en cada sección.
 
 ---
 
@@ -49,7 +49,7 @@ corto (`docs/contratos-servicios.md`) que las tres personas leyeron.
 
 ---
 
-## Luisa Ángel — Catálogo y configuración
+## Luis Ángel — Catálogo y configuración
 
 Módulos: `peliculas`, `salas` (+ `asientos`), `tipos_asiento`, `precios`, `promociones`
 (+ `promocion_funcion`), `dulceria` (`categorias_dulceria` + `productos_dulceria`).
@@ -82,7 +82,7 @@ Es el punto de partida de menor riesgo: CRUD con reglas propias, sin depender de
 - Guards de rol: todo endpoint de escritura es `@Roles('administrador')`; lectura abierta a
   `cliente` y `administrador` (RF11).
 - Toda mutación de `peliculas`/`precios`/`promociones` llama a `AuditService.log(...)`
-  (RF12) — el servicio lo expone Roly en la Fase 0/1, Luisa solo lo invoca.
+  (RF12) — el servicio lo expone Roly en la Fase 0/1, Luis Ángel solo lo invoca.
 - Tests con `/test-suite backend peliculas|salas|tipos_asiento|precios|promociones`.
 
 **Endpoints:**
@@ -117,8 +117,8 @@ con más experiencia en lógica de dominio.
   duplicar esa lógica, solo confiar en que ya ocurrió tras el `INSERT`/`UPDATE`.
 - `ventas`: el flujo completo de CU02 —
   1. Validar que los asientos pedidos están `disponible` para esa función.
-  2. Calcular `subtotal` con `PreciosService.getVigente(...)` (de Luisa).
-  3. Calcular `descuento_aplicado` con `PromocionesService.getAplicable(...)` (de Luisa).
+  2. Calcular `subtotal` con `PreciosService.getVigente(...)` (de Luis Ángel).
+  3. Calcular `descuento_aplicado` con `PromocionesService.getAplicable(...)` (de Luis Ángel).
   4. **Rechazar la creación si falta `confirmacion_no_reembolso`** (RF03) **o, cuando
      `tipo_registro='voz'`, si falta `confirmacion_verbal_check`** (RF19). Esta validación
      va en el `VentasService`, nunca confiada al caller.
@@ -174,14 +174,14 @@ Cubre: **RF10, RF11, RF12** transversalmente, y es quien deja lista la puerta de
 para que `ai-voice` pueda operar sobre el sistema real.
 
 Esta línea empieza en paralelo a las otras dos (auth, usuarios, audit no dependen de
-nadie), pero **`ia-gateway` se arma al final**, una vez que los `Service` de Luisa y Luis
+nadie), pero **`ia-gateway` se arma al final**, una vez que los `Service` de Luis Ángel y Luis Blanco
 tienen su interfaz estable — es la pieza de integración, no la de arranque.
 
 **Entregables (orden interno):**
 1. `auth`: login (según lo decidido en Fase 0), emisión de JWT con `rol` embebido.
 2. `usuarios`: CRUD básico, solo `administrador`.
 3. `audit`: `AuditService.log(idUsuario, accion, nivelDespliegue)` que inserta en
-   `log_acciones`, más un interceptor reusable para que Luisa y Luis lo enchufen sin
+   `log_acciones`, más un interceptor reusable para que Luis Ángel y Luis Blanco lo enchufen sin
    escribir el `INSERT` a mano. Endpoint `GET /audit/log-acciones` para que QA y el panel
    admin puedan consultarlo (RF12).
 4. `ia-gateway`: **el único endpoint que `ai-service` puede llamar para mutar datos**
@@ -211,15 +211,23 @@ POST                   /interacciones
 
 ## Cronograma sugerido (4 semanas)
 
-| Semana | Luisa Ángel | Luis Blanco | Roly |
+| Semana | Luis Ángel | Luis Blanco | Roly |
 |---|---|---|---|
 | 1 | Fase 0 conjunta + `peliculas` ✅ | Fase 0 conjunta + `funciones` (CRUD, sin flujo de venta aún) | Fase 0 conjunta + `auth` + `usuarios` |
-| 2 | `salas`/`asientos`/`tipos_asiento` ✅, `precios` | `disponibilidad_asiento` + `ventas` (cálculo y transacción) | `audit` (service + interceptor) |
-| 3 | `promociones` + integrar `getAplicable` con Luis | `pagos` (Stripe + QR + webhook) + `reportes` + tests de concurrencia en `ventas` | `ia-gateway` — integra contra los servicios ya estables de Luisa y Luis |
+| 2 | `salas`/`asientos` ✅ (ya migrados a `id_tipo_asiento`), `precios` ✅ (ídem) | `disponibilidad_asiento` + `ventas` (cálculo y transacción) | `audit` (service + interceptor) |
+| 3 | `promociones` ✅ — **pendiente nuevo**: CRUD propio de `tipos_asiento` y módulo `dulceria` (CU09/RF20) | `pagos` (Stripe + QR + webhook) + `reportes` + tests de concurrencia en `ventas` | `ia-gateway` — integra contra los servicios ya estables de Luis Ángel y Luis Blanco |
 | 4 | Tests, `/code-review`, buffer para pedidos de Roly sobre `ia-gateway` | Tests de `pagos`/`ventas`, `/code-review`, buffer | Endpoint `/interacciones`, pruebas de extremo a extremo del gateway, cierre |
 
+**Estado real (2026-09-09)**: `peliculas`, `salas`+`asientos`, `precios` y `promociones`
+de Luis Ángel están completos y con tests (build/lint/test en verde, `salas`/`asientos`/
+`precios` ya actualizados para usar `id_tipo_asiento` en vez del texto libre original —
+ver `docs/db-schema-notes.md`, "Normalización tipos_asiento"). Quedan pendientes, como
+trabajo NUEVO agregado por esta actualización de esquema: el CRUD propio de
+`tipos_asiento` (hoy es solo una tabla sembrada, sin controller) y el módulo `dulceria`
+completo (`categorias_dulceria` + `productos_dulceria`, CU09/RF20).
+
 **Checkpoint obligatorio a mitad de semana 3**: Roly no puede empezar `ia-gateway` en
-serio hasta confirmar con Luisa y Luis que las firmas acordadas en la Fase 0 no cambiaron.
+serio hasta confirmar con Luis Ángel y Luis Blanco que las firmas acordadas en la Fase 0 no cambiaron.
 Si cambiaron, se actualiza `docs/contratos-servicios.md` antes de seguir.
 
 **Nota de alcance:** si el equipo va ajustado de tiempo, `pagos` (Stripe + QR completos)
