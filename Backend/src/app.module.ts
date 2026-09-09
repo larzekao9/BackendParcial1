@@ -13,6 +13,7 @@ import { PreciosModule } from './modules/precios/precios.module.js';
 import { PromocionesModule } from './modules/promociones/promociones.module.js';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard.js';
 import { RolesGuard } from './shared/guards/roles.guard.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
   imports: [
@@ -29,10 +30,11 @@ import { RolesGuard } from './shared/guards/roles.guard.js';
     SalasModule, // Fase 2 (salas + asientos) → Luis Ángel
     PreciosModule, // Fase 3 (CU07) → Luis Ángel
     PromocionesModule, // Fase 4 (CU06) → Luis Ángel
+    AuditModule, // RF12 → Roly (interceptor global + GET /audit/log-acciones)
     // Fuera de este módulo raíz por ahora, cada dev agrega el suyo acá
     // cuando lo tenga listo:
     //   FuncionesModule, VentasModule, ReportesModule → Luis Blanco
-    //   AuditModule, IaGatewayModule                  → Roly
+    //   IaGatewayModule                                → Roly
   ],
   providers: [
     // Guards globales: por default TODO endpoint requiere JWT válido y

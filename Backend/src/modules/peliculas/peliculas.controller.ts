@@ -11,6 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { Roles } from '../../shared/decorators/roles.decorator.js';
+import { Audit } from '../../shared/decorators/audit.decorator.js';
 import { PeliculasService } from './peliculas.service.js';
 import { CrearPeliculaDto } from './dto/crear-pelicula.dto.js';
 import { ActualizarPeliculaDto } from './dto/actualizar-pelicula.dto.js';
@@ -35,18 +36,21 @@ export class PeliculasController {
   }
 
   @Roles('administrador')
+  @Audit('crear_pelicula')
   @Post()
   crear(@Body() dto: CrearPeliculaDto) {
     return this.peliculasService.crear(dto);
   }
 
   @Roles('administrador')
+  @Audit('actualizar_pelicula')
   @Patch(':id')
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarPeliculaDto) {
     return this.peliculasService.actualizar(id, dto);
   }
 
   @Roles('administrador')
+  @Audit('eliminar_pelicula')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {

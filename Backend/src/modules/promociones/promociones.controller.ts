@@ -11,6 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { Roles } from '../../shared/decorators/roles.decorator.js';
+import { Audit } from '../../shared/decorators/audit.decorator.js';
 import { PromocionesService } from './promociones.service.js';
 import { CrearPromocionDto } from './dto/crear-promocion.dto.js';
 import { ActualizarPromocionDto } from './dto/actualizar-promocion.dto.js';
@@ -39,18 +40,21 @@ export class PromocionesController {
   }
 
   @Roles('administrador')
+  @Audit('crear_promocion')
   @Post()
   crear(@Body() dto: CrearPromocionDto) {
     return this.promocionesService.crear(dto);
   }
 
   @Roles('administrador')
+  @Audit('actualizar_promocion')
   @Patch(':id')
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarPromocionDto) {
     return this.promocionesService.actualizar(id, dto);
   }
 
   @Roles('administrador')
+  @Audit('eliminar_promocion')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {
@@ -68,6 +72,7 @@ export class PromocionesController {
    * de los POST del módulo.
    */
   @Roles('administrador')
+  @Audit('asociar_promocion_funcion')
   @Post(':id/funciones/:idFuncion')
   @HttpCode(HttpStatus.CREATED)
   async asociarAFuncion(

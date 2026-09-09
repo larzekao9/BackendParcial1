@@ -13,7 +13,8 @@ docs/plan-luis-angel.md
 # Backend (Node/NestJS)
 Backend/node_modules/
 Backend/dist/
-Backend/.env
+Backend/.env*
+!Backend/.env.example
 Backend/coverage/
 Backend/*.log
 

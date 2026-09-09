@@ -11,6 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { Roles } from '../../shared/decorators/roles.decorator.js';
+import { Audit } from '../../shared/decorators/audit.decorator.js';
 import { PreciosService } from './precios.service.js';
 import { CrearPrecioDto } from './dto/crear-precio.dto.js';
 import { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
@@ -40,18 +41,21 @@ export class PreciosController {
   }
 
   @Roles('administrador')
+  @Audit('crear_precio')
   @Post()
   crear(@Body() dto: CrearPrecioDto) {
     return this.preciosService.crear(dto);
   }
 
   @Roles('administrador')
+  @Audit('actualizar_precio')
   @Patch(':id')
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarPrecioDto) {
     return this.preciosService.actualizar(id, dto);
   }
 
   @Roles('administrador')
+  @Audit('eliminar_precio')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {
