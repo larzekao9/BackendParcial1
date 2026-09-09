@@ -19,10 +19,16 @@ detectada. Segundo parcial — Ingeniería de Software 2.
 | Componente | Tecnología | Estado |
 |---|---|---|
 | Backend de negocio | NestJS (TypeScript) | **En desarrollo** (`Backend/`) |
-| Frontend admin | React (`web-admin/`) | No existe todavía |
+| Frontend | React + Vite + Tailwind (`Parcial1_Sw2_Frontend/`, repo separado de `hebertsb`) | Mockup visual, sin conexión real al backend |
 | App móvil cliente | Flutter (`mobile-app/`) | No existe todavía |
 | Servicio de IA (voz/NLU) | FastAPI (`ai-service/`) | No existe todavía |
 | Base de datos | PostgreSQL vía Supabase | Esquema en `base_datos_cine_ia.sql` |
+
+**Discrepancia de contrato sin resolver**: el frontend llama a
+`POST /auth/google` con `{ idToken }` (login con Google). El backend real
+solo tiene `POST /auth/login` con `{ nombre, rol }` (login simplificado, ver
+`docs/contratos-servicios.md`). No asumas que esto ya se coordinó entre
+equipos.
 
 ## Estado actual del backend
 
