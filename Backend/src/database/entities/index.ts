@@ -12,6 +12,9 @@ import { DetalleVentaEntrada } from './detalle-venta-entrada.entity.js';
 import { Pago } from './pago.entity.js';
 import { LogAccion } from './log-accion.entity.js';
 import { InteraccionIA } from './interaccion-ia.entity.js';
+import { CategoriaDulceria } from './categoria-dulceria.entity.js';
+import { ProductoDulceria } from './producto-dulceria.entity.js';
+import { DetalleVentaDulceria } from './detalle-venta-dulceria.entity.js';
 
 export {
   Usuario,
@@ -28,6 +31,9 @@ export {
   Pago,
   LogAccion,
   InteraccionIA,
+  CategoriaDulceria,
+  ProductoDulceria,
+  DetalleVentaDulceria,
 };
 
 /** Lista completa de entidades — usada por TypeOrmModule.forRootAsync. */
@@ -46,4 +52,7 @@ export const ENTITIES = [
   Pago,
   LogAccion,
   InteraccionIA,
+  CategoriaDulceria,
+  ProductoDulceria,
+  DetalleVentaDulceria,
 ];

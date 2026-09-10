@@ -11,6 +11,7 @@ import { PeliculasModule } from './modules/peliculas/peliculas.module.js';
 import { SalasModule } from './modules/salas/salas.module.js';
 import { PreciosModule } from './modules/precios/precios.module.js';
 import { PromocionesModule } from './modules/promociones/promociones.module.js';
+import { DulceriaModule } from './modules/dulceria/dulceria.module.js';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard.js';
 import { RolesGuard } from './shared/guards/roles.guard.js';
 import { AuditModule } from './modules/audit/audit.module.js';
@@ -34,6 +35,7 @@ import { ReportesModule } from './modules/reportes/reportes.module.js';
     SalasModule, // Fase 2 (salas + asientos) → Luis Ángel
     PreciosModule, // Fase 3 (CU07) → Luis Ángel
     PromocionesModule, // Fase 4 (CU06) → Luis Ángel
+    DulceriaModule, // CU09/RF20 → Luis Ángel
     AuditModule, // RF12 → Roly (interceptor global + GET /audit/log-acciones)
     FuncionesModule, // CU04 (RF07) → Luis Blanco
     VentasModule, // CU02 → Luis Blanco

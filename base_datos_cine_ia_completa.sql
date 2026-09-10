@@ -38,7 +38,8 @@ CREATE TABLE peliculas (
     genero          VARCHAR(80),
     duracion_min    INT NOT NULL,
     clasificacion   VARCHAR(10),
-    estado          VARCHAR(20) DEFAULT 'activa' CHECK (estado IN ('activa','inactiva'))
+    estado          VARCHAR(20) DEFAULT 'activa' CHECK (estado IN ('activa','inactiva')),
+    poster_url      VARCHAR(500)
 );
 
 -- =========================================================
