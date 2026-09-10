@@ -11,8 +11,28 @@ import { Promocion } from './promocion.entity.js';
 
 export type TipoRegistroVenta = 'voz' | 'manual';
 
+export type EstadoVenta =
+  | 'pendiente'
+  | 'confirmada'
+  | 'pendiente_pago'
+  | 'pagada'
+  | 'anulada'
+  | 'cancelada';
+
+/** Mismo dominio que `pagos.metodo_pago` — `stripe`/`qr` reservados para más adelante. */
+export type MetodoPago = 'stripe' | 'qr' | 'efectivo' | 'tarjeta';
+
 /**
  * Mapea la tabla `ventas` (CU02). Dominio de Luis Blanco.
+ *
+ * `estado`: se agrega esta columna (2026-09-10) — ya existía en
+ * `base_datos_cine_ia_completa.sql` (CHECK con los 6 valores de arriba, default
+ * 'pendiente') pero no estaba mapeada. `VentasService.crear` la fija en
+ * `'pendiente_pago'` al insertar (ver plan-backend.md: "la venta ya queda modelada con
+ * `estado='pendiente_pago'` independientemente de qué tan completo esté el módulo de
+ * pagos"). `metodo_pago_elegido`, `fecha_pago`, `id_pago_activo` se agregan acá
+ * (2026-09-10) junto con el módulo `pagos`: `PagosService.crear` las fija al confirmar
+ * el cobro, pasando `estado` a `'pagada'` — ver pagos.service.ts.
  *
  * `confirmacionNoReembolso` (RF03) y `confirmacionVerbalCheck` (RF19) son
  * NOT NULL DEFAULT false en la base — la regla de negocio de que una venta
@@ -88,4 +108,20 @@ export class Venta {
     default: 'voz',
   })
   tipoRegistro!: TipoRegistroVenta;
+
+  @Column({
+    type: 'varchar',
+    length: 30,
+    default: 'pendiente',
+  })
+  estado!: EstadoVenta;
+
+  @Column({ name: 'metodo_pago_elegido', type: 'varchar', length: 30, nullable: true })
+  metodoPagoElegido!: MetodoPago | null;
+
+  @Column({ name: 'fecha_pago', type: 'timestamp', nullable: true })
+  fechaPago!: Date | null;
+
+  @Column({ name: 'id_pago_activo', type: 'int', nullable: true })
+  idPagoActivo!: number | null;
 }

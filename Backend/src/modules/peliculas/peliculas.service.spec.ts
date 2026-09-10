@@ -39,6 +39,7 @@ describe('PeliculasService (CU03)', () => {
       genero: null,
       duracionMin: 150,
       clasificacion: null,
+      posterUrl: null,
     });
     expect(resultado).toMatchObject({ titulo: 'Batman', duracionMin: 150 });
   });

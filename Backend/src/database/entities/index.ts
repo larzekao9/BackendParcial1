@@ -9,6 +9,7 @@ import { Promocion } from './promocion.entity.js';
 import { PromocionFuncion } from './promocion-funcion.entity.js';
 import { Venta } from './venta.entity.js';
 import { DetalleVentaEntrada } from './detalle-venta-entrada.entity.js';
+import { Pago } from './pago.entity.js';
 import { LogAccion } from './log-accion.entity.js';
 import { InteraccionIA } from './interaccion-ia.entity.js';
 
@@ -24,6 +25,7 @@ export {
   PromocionFuncion,
   Venta,
   DetalleVentaEntrada,
+  Pago,
   LogAccion,
   InteraccionIA,
 };
@@ -41,6 +43,7 @@ export const ENTITIES = [
   PromocionFuncion,
   Venta,
   DetalleVentaEntrada,
+  Pago,
   LogAccion,
   InteraccionIA,
 ];

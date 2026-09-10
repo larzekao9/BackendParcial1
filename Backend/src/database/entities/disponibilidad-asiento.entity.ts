@@ -8,13 +8,19 @@ import {
 import { Funcion } from './funcion.entity.js';
 import { Asiento } from './asiento.entity.js';
 
-export type EstadoDisponibilidad = 'disponible' | 'ocupado';
+export type EstadoDisponibilidad = 'disponible' | 'ocupado' | 'cancelada';
 
 /**
  * Mapea la tabla `disponibilidad_asiento` (N:M funciones↔asientos).
  * Dominio de Luis Blanco: se genera automáticamente al crear una función
  * (una fila 'disponible' por cada asiento de la sala) y se actualiza a
  * 'ocupado' dentro de la transacción de compra en `ventas`.
+ *
+ * `estado` incluye 'cancelada' (no solo 'disponible'/'ocupado') porque así
+ * lo declara el CHECK real de la tabla — el trigger `trg_cancelar_disponibilidad`
+ * pasa todas las filas de una función a 'cancelada' cuando esa función se
+ * cancela (ver `FuncionesService.cancelar`). La aplicación nunca escribe
+ * 'cancelada' directamente, solo la lee.
  *
  * OJO para `FuncionesService.cancelar`/`eliminar`: `base_datos_cine_ia.sql`
  * NO declara `ON DELETE` en la FK hacia `funciones`, así que Postgres usa

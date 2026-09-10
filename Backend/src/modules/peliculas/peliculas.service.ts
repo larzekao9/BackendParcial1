@@ -42,6 +42,7 @@ export class PeliculasService implements PeliculasContract {
       genero: input.genero ?? null,
       duracionMin: input.duracionMin,
       clasificacion: input.clasificacion ?? null,
+      posterUrl: input.posterUrl ?? null,
     });
     return this.peliculasRepo.save(pelicula);
   }

@@ -22,4 +22,8 @@ export class Pelicula {
 
   @Column({ type: 'varchar', length: 20, default: 'activa' })
   estado!: EstadoPelicula;
+
+  /** URL de Cloudinary (2026-09-10) — no hay upload firmado por backend, el frontend sube directo con un preset unsigned. */
+  @Column({ name: 'poster_url', type: 'varchar', length: 500, nullable: true })
+  posterUrl!: string | null;
 }

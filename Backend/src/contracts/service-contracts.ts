@@ -2,7 +2,7 @@ import type { Pelicula } from '../database/entities/pelicula.entity.js';
 import type { Precio } from '../database/entities/precio.entity.js';
 import type { Promocion } from '../database/entities/promocion.entity.js';
 import type { Funcion, EstadoFuncion } from '../database/entities/funcion.entity.js';
-import type { Venta, TipoRegistroVenta } from '../database/entities/venta.entity.js';
+import type { Venta, TipoRegistroVenta, MetodoPago } from '../database/entities/venta.entity.js';
 
 /**
  * Contrato de Fase 0 — acordado entre Luis Ángel, Luis Blanco y Roly antes
@@ -26,6 +26,8 @@ export interface CrearPeliculaInput {
   genero?: string | null;
   duracionMin: number;
   clasificacion?: string | null;
+  /** URL de Cloudinary — ver "Poster real de películas" en docs/db-schema-notes.md (2026-09-10). */
+  posterUrl?: string | null;
 }
 
 export interface PeliculasContract {
@@ -93,6 +95,23 @@ export interface VentasContract {
    * y descuento, marca asientos como 'ocupado', inserta venta + detalle.
    */
   crear(input: CrearVentaInput): Promise<Venta>;
+}
+
+export interface CrearPagoInput {
+  idVenta: number;
+  /** `stripe`/`qr` quedan rechazados por PagosService.crear hasta implementarlos (ver pagos.service.ts). */
+  metodo: MetodoPago;
+}
+
+export interface PagosContract {
+  /**
+   * Pago controlado por el propio sistema (sin pasarela externa todavía) — RF04.
+   * Rechaza con 404 si la venta no existe, 409 si `venta.estado !== 'pendiente_pago'`,
+   * 400 si `metodo` no es `'efectivo'` ni `'tarjeta'`. Inserta un `Pago` en estado
+   * `'exitoso'` y actualiza la venta a `estado='pagada'` dentro de una transacción.
+   * Devuelve la Venta ya actualizada (no el Pago).
+   */
+  crear(input: CrearPagoInput): Promise<Venta>;
 }
 
 // ---- Roly — usado por ia-gateway para ejecutar acciones confirmadas ------

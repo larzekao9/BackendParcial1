@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class CrearPeliculaDto {
   @IsString()
@@ -19,4 +19,10 @@ export class CrearPeliculaDto {
   @IsString()
   @MaxLength(10)
   clasificacion?: string;
+
+  /** URL de Cloudinary (subida sin firmar desde el frontend, ver src/api/cloudinary.api.ts del frontend). */
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(500)
+  posterUrl?: string;
 }

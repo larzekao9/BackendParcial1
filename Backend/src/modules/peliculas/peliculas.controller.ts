@@ -12,24 +12,27 @@ import {
 } from '@nestjs/common';
 import { Roles } from '../../shared/decorators/roles.decorator.js';
 import { Audit } from '../../shared/decorators/audit.decorator.js';
+import { Public } from '../../shared/decorators/public.decorator.js';
 import { PeliculasService } from './peliculas.service.js';
 import { CrearPeliculaDto } from './dto/crear-pelicula.dto.js';
 import { ActualizarPeliculaDto } from './dto/actualizar-pelicula.dto.js';
 
 /**
- * CU03 — lectura abierta a cliente y administrador (RF11: sin `@Roles`, el
- * RolesGuard global no restringe si el endpoint no lo declara). Escritura
- * (POST/PATCH/DELETE) solo administrador.
+ * CU03 — lectura pública (`@Public()`, RF01: se puede navegar la cartelera sin
+ * cuenta, ver docs/db-schema-notes.md — corrección 2026-09-10, antes exigía JWT
+ * hasta para listar películas). Escritura (POST/PATCH/DELETE) solo administrador.
  */
 @Controller('peliculas')
 export class PeliculasController {
   constructor(private readonly peliculasService: PeliculasService) {}
 
+  @Public()
   @Get()
   listar() {
     return this.peliculasService.listar();
   }
 
+  @Public()
   @Get(':id')
   buscarPorId(@Param('id', ParseIntPipe) id: number) {
     return this.peliculasService.buscarPorId(id);
