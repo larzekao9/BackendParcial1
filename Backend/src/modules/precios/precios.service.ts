@@ -22,11 +22,11 @@ import type { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
  * `Date` crudo) para que la comparación contra las columnas `date` de
  * Postgres sea consistente sin sorpresas de timezone en el driver `pg`.
  *
- * `getVigente`/`crear`: CORRECCIÓN (2026-09-07) — usaban una columna
- * `tipoAsiento` (varchar) que mapeaba el esquema previo a la normalización
- * de `tipos_asiento`; esa columna ya no existe en la base real, se
- * reemplaza por `idTipoAsiento` (FK). Ver docs/db-schema-notes.md, entrada
- * "Normalización tipos_asiento".
+ * `getVigente`/`crear`: CORRECCIÓN (2026-09-10) — ya no filtran por tipo de
+ * asiento (`idTipoAsiento` se retiró de `precios`): el precio de una
+ * entrada depende de la función (`funciones.id_precio`), no de la butaca.
+ * Ver docs/db-schema-notes.md, "Reversión: tipo de asiento por sala, no
+ * por butaca".
  *
  * `eliminar`: CORRECCIÓN (2026-09-07) — este comentario decía que
  * `funciones.id_precio` tenía FK con `onDelete: 'SET NULL'`, así que
@@ -56,13 +56,12 @@ export class PreciosService implements PreciosContract {
     private readonly funcionesRepo: Repository<Funcion>,
   ) {}
 
-  async getVigente(idTipoAsiento: number, fecha: Date): Promise<Precio> {
+  async getVigente(fecha: Date): Promise<Precio> {
     const fechaIso = PreciosService.formatearFecha(fecha);
 
     const precio = await this.preciosRepo
       .createQueryBuilder('precio')
-      .where('precio.idTipoAsiento = :idTipoAsiento', { idTipoAsiento })
-      .andWhere('precio.vigenteDesde <= :fecha', { fecha: fechaIso })
+      .where('precio.vigenteDesde <= :fecha', { fecha: fechaIso })
       .andWhere(
         '(precio.vigenteHasta IS NULL OR precio.vigenteHasta >= :fecha)',
         { fecha: fechaIso },
@@ -71,16 +70,13 @@ export class PreciosService implements PreciosContract {
       .getOne();
 
     if (!precio) {
-      throw new NotFoundException(
-        `No hay precio vigente para el tipo de asiento ${idTipoAsiento} en esa fecha.`,
-      );
+      throw new NotFoundException('No hay ningún precio vigente en esa fecha.');
     }
     return precio;
   }
 
   async crear(dto: CrearPrecioDto): Promise<Precio> {
     const precio = this.preciosRepo.create({
-      idTipoAsiento: dto.idTipoAsiento,
       valor: dto.valor.toString(),
       vigenteDesde: dto.vigenteDesde,
       vigenteHasta: dto.vigenteHasta ?? null,

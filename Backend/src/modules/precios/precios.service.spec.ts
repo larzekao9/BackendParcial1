@@ -33,24 +33,21 @@ describe('PreciosService (CU07)', () => {
     const { service, preciosRepo } = buildService();
 
     const resultado = await service.crear({
-      idTipoAsiento: 1,
       valor: 25.5,
       vigenteDesde: '2026-01-01',
     });
 
     expect(preciosRepo.create).toHaveBeenCalledWith({
-      idTipoAsiento: 1,
       valor: '25.5',
       vigenteDesde: '2026-01-01',
       vigenteHasta: null,
     });
-    expect(resultado).toMatchObject({ idTipoAsiento: 1, valor: '25.5' });
+    expect(resultado).toMatchObject({ valor: '25.5' });
   });
 
   it('actualizar aplica el patch sobre el precio existente', async () => {
     const precioExistente: Precio = {
       idPrecio: 5,
-      idTipoAsiento: 1,
       valor: '25.50',
       vigenteDesde: '2026-01-01',
       vigenteHasta: null,
@@ -72,11 +69,10 @@ describe('PreciosService (CU07)', () => {
     // Mismo bug de la Fase 2 (ver SalasService.actualizar): un DTO parcial
     // pasado por el ValidationPipe trae los campos no enviados como
     // propiedad propia `undefined` (class fields ES2023). Un
-    // `Object.assign` ingenuo pisaría `idTipoAsiento`/`vigenteDesde` en el
+    // `Object.assign` ingenuo pisaría `vigenteDesde`/`vigenteHasta` en el
     // objeto devuelto.
     const precioExistente: Precio = {
       idPrecio: 6,
-      idTipoAsiento: 2,
       valor: '18.00',
       vigenteDesde: '2026-02-01',
       vigenteHasta: '2026-12-31',
@@ -85,9 +81,8 @@ describe('PreciosService (CU07)', () => {
       await import('./dto/actualizar-precio.dto.js')
     ).ActualizarPrecioDto();
     dtoConCamposDeClaseSinEnviar.valor = 22;
-    // idTipoAsiento, vigenteDesde, vigenteHasta quedan como propiedad
-    // propia = undefined, igual que los deja el ValidationPipe cuando no
-    // vienen en el body.
+    // vigenteDesde, vigenteHasta quedan como propiedad propia = undefined,
+    // igual que los deja el ValidationPipe cuando no vienen en el body.
 
     const { service, preciosRepo } = buildService({
       preciosRepo: {
@@ -99,12 +94,10 @@ describe('PreciosService (CU07)', () => {
     const resultado = await service.actualizar(6, dtoConCamposDeClaseSinEnviar);
 
     expect(resultado.valor).toBe('22');
-    expect(resultado.idTipoAsiento).toBe(2);
     expect(resultado.vigenteDesde).toBe('2026-02-01');
     expect(resultado.vigenteHasta).toBe('2026-12-31');
     expect(preciosRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        idTipoAsiento: 2,
         vigenteDesde: '2026-02-01',
         vigenteHasta: '2026-12-31',
       }),
@@ -114,7 +107,6 @@ describe('PreciosService (CU07)', () => {
   it('eliminar borra el precio cuando ninguna función lo referencia', async () => {
     const precio: Precio = {
       idPrecio: 7,
-      idTipoAsiento: 3,
       valor: '40.00',
       vigenteDesde: '2026-01-01',
       vigenteHasta: null,
@@ -132,7 +124,6 @@ describe('PreciosService (CU07)', () => {
   it('eliminar rechaza con ConflictException si una función referencia el precio (FK real es NO ACTION, no SET NULL)', async () => {
     const precio: Precio = {
       idPrecio: 8,
-      idTipoAsiento: 1,
       valor: '20.00',
       vigenteDesde: '2026-01-01',
       vigenteHasta: null,

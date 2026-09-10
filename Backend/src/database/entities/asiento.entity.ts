@@ -7,23 +7,23 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Sala } from './sala.entity.js';
-import { TipoAsiento } from './tipo-asiento.entity.js';
 
 /**
  * Mapea la tabla `asientos`. Dominio de Luis Ángel.
  *
- * CORRECCIÓN (2026-09-07): esta entidad tenía una columna `tipo` (varchar)
- * que mapeaba el esquema previo a la normalización de `tipos_asiento` — esa
- * columna ya no existe en la base real (`base_datos_cine_ia_completa.sql`),
- * se reemplaza por la FK `id_tipo_asiento`. Ver docs/db-schema-notes.md,
- * entrada "Normalización tipos_asiento".
+ * CORRECCIÓN (2026-09-10): se retira `id_tipo_asiento` — dentro de una
+ * misma sala todos los asientos son físicamente iguales (no se vende un
+ * asiento VIP suelto en una sala normal); la diferenciación real de
+ * precio/formato es por SALA (`salas.tipo`: 2D/3D/VIP), no por butaca. Ver
+ * docs/db-schema-notes.md, entrada "Reversión: tipo de asiento por sala,
+ * no por butaca".
  *
- * `onDelete: 'NO ACTION'` es el default real de Postgres para ambas FK
+ * `onDelete: 'NO ACTION'` es el default real de Postgres para esta FK
  * (`base_datos_cine_ia_completa.sql` no declara `ON DELETE`) — ver
  * docs/db-schema-notes.md, entrada "Discrepancia onDelete" (2026-09-07).
  * Se comporta igual que `RESTRICT` para un DELETE simple (bloquea si hay
- * asientos asociados a la sala/al tipo de asiento), así que no cambia
- * ninguna lógica ya escrita en `SalasService`.
+ * asientos asociados a la sala), así que no cambia ninguna lógica ya
+ * escrita en `SalasService`.
  */
 @Entity('asientos')
 @Index(['idSala', 'fila', 'numero'], { unique: true })
@@ -37,13 +37,6 @@ export class Asiento {
   @ManyToOne(() => Sala, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_sala' })
   sala?: Sala;
-
-  @Column({ name: 'id_tipo_asiento', type: 'int' })
-  idTipoAsiento!: number;
-
-  @ManyToOne(() => TipoAsiento, { onDelete: 'NO ACTION' })
-  @JoinColumn({ name: 'id_tipo_asiento' })
-  tipoAsiento?: TipoAsiento;
 
   @Column({ type: 'varchar', length: 5 })
   fila!: string;

@@ -38,10 +38,13 @@ export interface PeliculasContract {
 
 export interface PreciosContract {
   /**
-   * Precio vigente de un tipo de asiento (FK `id_tipo_asiento`, tabla
-   * `tipos_asiento`) para una fecha dada. Lo consume VentasService.
+   * Precio vigente para una fecha dada — ya no depende de un tipo de
+   * asiento: el precio de una entrada cuelga de la función
+   * (`funciones.id_precio`), no de la butaca individual (ver
+   * docs/db-schema-notes.md, "Reversión: tipo de asiento por sala, no por
+   * butaca"). Lo consume VentasService.
    */
-  getVigente(idTipoAsiento: number, fecha: Date): Promise<Precio>;
+  getVigente(fecha: Date): Promise<Precio>;
 }
 
 export interface PromocionesContract {
