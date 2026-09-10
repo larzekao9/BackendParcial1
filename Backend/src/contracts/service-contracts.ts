@@ -1,6 +1,7 @@
 import type { Pelicula } from '../database/entities/pelicula.entity.js';
 import type { Precio } from '../database/entities/precio.entity.js';
 import type { Promocion } from '../database/entities/promocion.entity.js';
+import type { ProductoDulceria } from '../database/entities/producto-dulceria.entity.js';
 import type { Funcion, EstadoFuncion } from '../database/entities/funcion.entity.js';
 import type { Venta, TipoRegistroVenta, MetodoPago } from '../database/entities/venta.entity.js';
 
@@ -52,6 +53,11 @@ export interface PreciosContract {
 export interface PromocionesContract {
   /** Promoción activa aplicable a una función, o null si no hay ninguna. Lo consume VentasService. */
   getAplicable(idFuncion: number): Promise<Promocion | null>;
+}
+
+export interface ProductoDulceriaContract {
+  /** Productos disponibles (activos) del menú, opcionalmente filtrados por categoría. Lo consume VentasService. */
+  getDisponibles(idCategoria?: number): Promise<ProductoDulceria[]>;
 }
 
 // ---- Luis Blanco — funciones, ventas y reportes ---------------------------

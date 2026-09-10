@@ -257,16 +257,23 @@ POST                   /interacciones
 |---|---|---|---|
 | 1 | Fase 0 conjunta + `peliculas` ✅ | Fase 0 conjunta + `funciones` (CRUD, sin flujo de venta aún) | Fase 0 conjunta + `auth` + `usuarios` |
 | 2 | `salas`/`asientos` ✅, `precios` ✅ | `disponibilidad_asiento` + `ventas` (cálculo y transacción) | `audit` (service + interceptor) |
-| 3 | `promociones` ✅ — **pendiente**: módulo `dulceria` (CU09/RF20) | `pagos` ✅ (alcance mínimo: efectivo/tarjeta; Stripe/QR quedan para después) + `reportes` ✅ + tests de concurrencia en `ventas` ✅ | `ia-gateway` — integra contra los servicios ya estables de Luis Ángel y Luis Blanco |
+| 3 | `promociones` ✅, `dulceria` ✅ (CU09/RF20 — **con esto, Luis Ángel completó TODOS sus módulos**) | `pagos` ✅ (alcance mínimo: efectivo/tarjeta; Stripe/QR quedan para después) + `reportes` ✅ + tests de concurrencia en `ventas` ✅ | `ia-gateway` — integra contra los servicios ya estables de Luis Ángel y Luis Blanco |
 | 4 | Tests, `/code-review`, buffer para pedidos de Roly sobre `ia-gateway` | Tests de `pagos`/`ventas`, `/code-review`, buffer | Endpoint `/interacciones`, pruebas de extremo a extremo del gateway, cierre |
 
 **Estado real (2026-09-10)**: `peliculas` (con `poster_url`/Cloudinary agregado esta misma
-fecha, ver `docs/db-schema-notes.md`), `salas`+`asientos`, `precios` y `promociones` de
-Luis Ángel están completos y con tests (build/lint/test en verde). El intento de
-`tipos_asiento` de la actualización de esquema del 2026-09-07 se revirtió esta misma
-semana (ver nota de reversión arriba) — ya no es trabajo pendiente, no existe la tabla.
-Sigue pendiente el módulo `dulceria` completo (`categorias_dulceria` + `productos_dulceria`,
-CU09/RF20). De Roly: `auth`, `usuarios` (solo métodos internos, sin CRUD/controller) y
+fecha, ver `docs/db-schema-notes.md`), `salas`+`asientos`, `precios`, `promociones` y
+`dulceria` de Luis Ángel están completos y con tests (build/lint/test en verde, 120/120).
+El intento de `tipos_asiento` de la actualización de esquema del 2026-09-07 se revirtió
+esta misma semana (ver nota de reversión arriba) — ya no es trabajo pendiente, no existe
+la tabla. **`dulceria`** (CU09/RF20, `categorias_dulceria` + `productos_dulceria`) quedó
+completo con CRUD de categorías (DELETE físico, bloqueado con 409 si hay productos
+asociados) y de productos (DELETE es soft: `disponible = false`, mismo patrón que
+`peliculas.estado`, porque `detalle_venta_dulceria` puede referenciar un producto
+descontinuado), más `getDisponibles(idCategoria?)` implementando `ProductoDulceriaContract`
+para que `VentasService` de Luis Blanco arme el carrito de dulcería. Es el primer módulo de
+Luis Ángel construido con `@Audit(...)` desde el arranque (los anteriores son previos a
+`AuditModule`). **Con esto, Luis Ángel completó los 5 módulos que le tocaban en este
+documento.** De Roly: `auth`, `usuarios` (solo métodos internos, sin CRUD/controller) y
 `audit` completos; `ia-gateway` sin empezar. De Luis Blanco: `funciones`
 (CRUD + anti-solapamiento + `GET /funciones/:id/disponibilidad`), `ventas` (flujo
 transaccional completo, RF03/RF19, verificado con test de concurrencia real contra
