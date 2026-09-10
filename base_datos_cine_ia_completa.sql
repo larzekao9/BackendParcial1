@@ -12,17 +12,7 @@
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- =========================================================
--- 1. TIPOS DE ASIENTO (catálogo compartido por asientos y precios)
--- =========================================================
-CREATE TABLE tipos_asiento (
-    id_tipo_asiento   SERIAL PRIMARY KEY,
-    nombre            VARCHAR(20) NOT NULL UNIQUE  -- normal, preferencial, VIP
-);
-
-INSERT INTO tipos_asiento (nombre) VALUES ('normal'), ('preferencial'), ('VIP');
-
--- =========================================================
--- 2. USUARIOS Y ROLES (soporta RF11 - validar rol del hablante)
+-- 1. USUARIOS Y ROLES (soporta RF11 - validar rol del hablante)
 -- =========================================================
 CREATE TABLE usuarios (
     id_usuario      SERIAL PRIMARY KEY,
@@ -40,7 +30,7 @@ CREATE TABLE usuarios (
 );
 
 -- =========================================================
--- 3. PELÍCULAS (CU03 - Gestionar cartelera)
+-- 2. PELÍCULAS (CU03 - Gestionar cartelera)
 -- =========================================================
 CREATE TABLE peliculas (
     id_pelicula     SERIAL PRIMARY KEY,
@@ -52,38 +42,46 @@ CREATE TABLE peliculas (
 );
 
 -- =========================================================
--- 4. SALAS Y ASIENTOS
+-- 3. SALAS Y ASIENTOS
+--
+-- Toda butaca de una sala es físicamente idéntica a las demás: la
+-- diferenciación de formato/categoría (2D, 3D, VIP) es de la SALA
+-- (`salas.tipo`), no de la butaca individual — no se vende un asiento VIP
+-- suelto dentro de una sala normal. Ver docs/db-schema-notes.md, entrada
+-- "Reversión: tipo de asiento por sala, no por butaca" (2026-09-10).
 -- =========================================================
 CREATE TABLE salas (
     id_sala             SERIAL PRIMARY KEY,
     nombre              VARCHAR(50) NOT NULL,
     capacidad           INT NOT NULL,
-    tipo                VARCHAR(30), -- 2D, 3D, VIP (tipo de SALA, no de asiento)
+    tipo                VARCHAR(30), -- 2D, 3D, VIP (formato de la sala)
     tiempo_limpieza_min INT NOT NULL DEFAULT 20 -- margen por defecto entre funciones
 );
 
 CREATE TABLE asientos (
     id_asiento      SERIAL PRIMARY KEY,
     id_sala         INT NOT NULL REFERENCES salas(id_sala),
-    id_tipo_asiento INT NOT NULL REFERENCES tipos_asiento(id_tipo_asiento),
     fila            VARCHAR(5) NOT NULL,
     numero          INT NOT NULL,
     UNIQUE (id_sala, fila, numero)
 );
 
 -- =========================================================
--- 5. PRECIOS (CU07 - Gestión de precio)
+-- 4. PRECIOS (CU07 - Gestión de precio)
+--
+-- El precio de una entrada cuelga de la FUNCIÓN (`funciones.id_precio`,
+-- que ya trae implícita la sala/formato/horario), no de un tipo de
+-- asiento individual — ver misma nota que arriba.
 -- =========================================================
 CREATE TABLE precios (
     id_precio       SERIAL PRIMARY KEY,
-    id_tipo_asiento INT NOT NULL REFERENCES tipos_asiento(id_tipo_asiento),
     valor           NUMERIC(10,2) NOT NULL,
     vigente_desde   DATE NOT NULL,
     vigente_hasta   DATE
 );
 
 -- =========================================================
--- 6. FUNCIONES / CRONOGRAMA (CU04 - Gestionar funciones)
+-- 5. FUNCIONES / CRONOGRAMA (CU04 - Gestionar funciones)
 --    Incluye control de tiempo de limpieza y anti-solapamiento
 -- =========================================================
 CREATE TABLE funciones (
@@ -139,7 +137,7 @@ ALTER TABLE funciones
     );
 
 -- =========================================================
--- 7. DISPONIBILIDAD DE ASIENTOS POR FUNCIÓN (N:M funciones-asientos)
+-- 6. DISPONIBILIDAD DE ASIENTOS POR FUNCIÓN (N:M funciones-asientos)
 -- =========================================================
 CREATE TABLE disponibilidad_asiento (
     id_funcion      INT NOT NULL REFERENCES funciones(id_funcion),
@@ -186,7 +184,7 @@ FOR EACH ROW
 EXECUTE FUNCTION cancelar_disponibilidad_funcion();
 
 -- =========================================================
--- 8. PROMOCIONES (CU06 - Gestión de promociones)
+-- 7. PROMOCIONES (CU06 - Gestión de promociones)
 -- =========================================================
 CREATE TABLE promociones (
     id_promocion    SERIAL PRIMARY KEY,
@@ -207,7 +205,7 @@ CREATE TABLE promocion_funcion (
 );
 
 -- =========================================================
--- 9. VENTAS (CU02 - Comprar entradas / CU05 - Generar reportes)
+-- 8. VENTAS (CU02 - Comprar entradas / CU05 - Generar reportes)
 -- =========================================================
 CREATE TABLE ventas (
     id_venta                    SERIAL PRIMARY KEY,
@@ -237,7 +235,7 @@ CREATE TABLE detalle_venta_entradas (
 );
 
 -- =========================================================
--- 9b. DULCERÍA (CU09 / RF20) — alcance simplificado:
+-- 8b. DULCERÍA (CU09 / RF20) — alcance simplificado:
 --     cada combinación de tamaño/sabor es un producto distinto
 --     en la tabla, sin motor genérico de variantes/modificadores.
 --     Reutiliza la misma tabla `ventas` que las entradas: una
@@ -271,7 +269,7 @@ CREATE TABLE detalle_venta_dulceria (
 );
 
 -- =========================================================
--- 10. PAGOS (Stripe / QR / efectivo / tarjeta) — soporta RF04
+-- 9. PAGOS (Stripe / QR / efectivo / tarjeta) — soporta RF04
 -- =========================================================
 CREATE TABLE pagos (
     id_pago                     SERIAL PRIMARY KEY,
@@ -318,7 +316,7 @@ ALTER TABLE ventas
     FOREIGN KEY (id_pago_activo) REFERENCES pagos(id_pago);
 
 -- =========================================================
--- 11. TRAZABILIDAD (RF12 - historial/log de acciones del admin)
+-- 10. TRAZABILIDAD (RF12 - historial/log de acciones del admin)
 -- =========================================================
 CREATE TABLE log_acciones (
     id_log              SERIAL PRIMARY KEY,
@@ -329,7 +327,7 @@ CREATE TABLE log_acciones (
 );
 
 -- =========================================================
--- 12. INTERACCIONES DE IA / UI GENERATIVA (CU08, RF18)
+-- 11. INTERACCIONES DE IA / UI GENERATIVA (CU08, RF18)
 -- =========================================================
 CREATE TABLE interacciones_ia (
     id_interaccion      SERIAL PRIMARY KEY,
@@ -354,8 +352,6 @@ CREATE INDEX idx_ventas_pago_activo ON ventas(id_pago_activo) WHERE id_pago_acti
 CREATE INDEX idx_disponibilidad_funcion ON disponibilidad_asiento(id_funcion);
 CREATE INDEX idx_log_usuario ON log_acciones(id_usuario);
 CREATE INDEX idx_interacciones_usuario ON interacciones_ia(id_usuario);
-CREATE INDEX idx_precios_tipo_asiento ON precios(id_tipo_asiento);
-CREATE INDEX idx_asientos_tipo_asiento ON asientos(id_tipo_asiento);
 CREATE INDEX idx_pagos_venta ON pagos(id_venta);
 CREATE INDEX idx_pagos_estado ON pagos(estado);
 CREATE UNIQUE INDEX idx_pagos_stripe_intent ON pagos(stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;

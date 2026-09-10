@@ -125,6 +125,54 @@ lo que mande el cliente), busca `usuarios` por `email`; si no existe, lo
 crea (`rol='cliente'`, `metodo_auth='google'`) y firma el mismo JWT que
 ya emite `POST /auth/login`.
 
+## Reversión: tipo de asiento por sala, no por butaca (2026-09-10)
+
+**Hallazgo (Luis Blanco, revisando el esquema antes de empezar `funciones`):**
+la normalización de `tipos_asiento` (entrada anterior) asumía que dentro de
+una misma sala podían convivir butacas de distinto tipo (normal/preferencial/
+VIP), y que el precio dependía de esa mezcla. En la práctica del negocio eso
+no es así: **todas las butacas de una sala son físicamente iguales** — no se
+vende un asiento VIP suelto dentro de una sala normal. La diferenciación real
+de formato/categoría (y por lo tanto de precio) es de la **sala** (`salas.tipo`:
+2D/3D/VIP), no de la butaca individual.
+
+Esto dejaba dos ejes de precio compitiendo en el esquema: `funciones.id_precio`
+(un precio por función, nunca leído por ningún service) y `precios.id_tipo_asiento`
+(un precio por tipo de asiento, el que sí usaba `PreciosContract.getVigente`).
+Sobraba uno de los dos.
+
+**Cambio aplicado (contra la Supabase real, 2026-09-10):**
+```sql
+ALTER TABLE asientos DROP COLUMN id_tipo_asiento;
+ALTER TABLE precios  DROP COLUMN id_tipo_asiento;
+DROP TABLE tipos_asiento;
+```
+Verificado antes de ejecutar que `salas`, `asientos`, `precios` y `peliculas`
+estaban vacías en producción (0 filas) — no hubo pérdida de datos reales.
+`tipos_asiento` sí tenía sus 3 filas semilla, que se pierden (no había nada
+más referenciándolas fuera de las columnas que se acaban de borrar).
+
+`precios` queda como una lista simple de precios vigentes por fecha
+(`valor`, `vigente_desde`, `vigente_hasta`), sin ninguna FK a tipo de
+asiento. El precio de una entrada es el de la función a la que pertenece
+(`funciones.id_precio`), no varía butaca por butaca.
+
+**Código actualizado en el mismo cambio** (dominio de Luis Ángel —
+avisarle antes de pushear, no estaba presente cuando se hizo):
+- `Asiento`/`Precio` (entidades TypeORM): sin `idTipoAsiento`.
+- `TipoAsiento` (entidad): eliminada.
+- `PreciosContract.getVigente`: firma pasó de `(idTipoAsiento, fecha)` a
+  `(fecha)`.
+- `PreciosService`, `CrearPrecioDto`, `SalasService.generarAsientos`
+  (ya no resuelve ningún id de `tipos_asiento` al crear una sala).
+- Tests unitarios y de integración de `precios`/`salas`/`promociones`
+  ajustados para no referenciar `idTipoAsiento`.
+
+**Regla para el resto del equipo:** si en algún momento un formato de sala
+necesita un precio distinto (ej. "VIP cuesta más que 2D"), eso se resuelve
+eligiendo un `id_precio` distinto al crear la función para esa sala — no
+agregando de nuevo un tipo de asiento por butaca.
+
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
 Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o

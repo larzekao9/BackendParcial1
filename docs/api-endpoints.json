@@ -1,0 +1,319 @@
+{
+  "_meta": {
+    "descripcion": "Contrato de la API del backend NestJS para que el frontend (Parcial1_Sw2_Frontend) integre sin adivinar formas de request/response. Generado el 2026-09-09 leyendo los controllers/DTOs/entidades reales y verificando contra la Supabase de producción (login, crear/eliminar película, log de auditoría). Actualizado el 2026-09-10 tras la migración que retiró tipos_asiento (ver docs/db-schema-notes.md, 'Reversión: tipo de asiento por sala, no por butaca').",
+    "baseUrlDev": "http://localhost:3333/api",
+    "globalPrefix": "api",
+    "cors": "habilitado para cualquier origen (app.enableCors() sin opciones)",
+    "autenticacion": {
+      "esquema": "Bearer JWT en header Authorization: Bearer <token>",
+      "obtenerToken": "POST /auth/login o POST /auth/google",
+      "importante": "TODO endpoint requiere JWT válido por default (401 si falta/expiró), salvo los marcados \"auth\": \"public\". Los endpoints de solo-lectura de catálogo (peliculas/salas/precios/promociones) NO son anónimos: aceptan cualquier rol autenticado (cliente o administrador), pero sí exigen login. Los marcados \"auth\": \"jwt+administrador\" además exigen rol='administrador' o devuelven 403."
+    },
+    "formatoErrorGlobal": {
+      "shape": { "message": "string", "code": "string" },
+      "notas": [
+        "409 CONFLICTO_HORARIO_SALA: violación del EXCLUDE constraint anti-solapamiento en funciones (Postgres 23P01) — todavía no aplica, funciones no está implementado.",
+        "409 CONFLICTO_DUPLICADO: unique_violation de Postgres (23505).",
+        "404 REFERENCIA_INEXISTENTE: FK a un id que no existe (23503) — ej. crear una función con idPrecio inexistente.",
+        "401 UNAUTHORIZED: falta JWT, es inválido, o credenciales de login incorrectas.",
+        "403 FORBIDDEN: JWT válido pero el rol no tiene acceso (RolesGuard).",
+        "400: body no pasa class-validator (ValidationPipe global con whitelist:true, forbidNonWhitelisted:true — un campo extra en el body también da 400)."
+      ]
+    },
+    "notaTiposAsiento": "ELIMINADO (2026-09-10): tipos_asiento ya no existe. Dentro de una sala todas las butacas son iguales; la diferenciación de formato/precio es por SALA (salas.tipo: 2D/3D/VIP) y por FUNCIÓN (funciones.id_precio), no por butaca individual. Ver docs/db-schema-notes.md, 'Reversión: tipo de asiento por sala, no por butaca'.",
+    "modulosPendientes": {
+      "descripcion": "No implementados todavía en el backend — el frontend NO debe integrar contra estas rutas aún, van a dar 404.",
+      "lista": [
+        "GET/POST/PATCH/DELETE /funciones",
+        "GET /funciones/:id/disponibilidad",
+        "POST /ventas, GET /ventas, GET /ventas/:id",
+        "GET /reportes/ventas, /reportes/por-pelicula, /reportes/por-funcion",
+        "POST /ia-gateway/acciones",
+        "POST /interacciones",
+        "GET/POST/PATCH/DELETE /usuarios (CRUD de administración; usuarios.service.ts hoy solo tiene los métodos internos que usa /auth)"
+      ]
+    }
+  },
+  "endpoints": [
+    {
+      "metodo": "GET",
+      "ruta": "/health",
+      "auth": "public",
+      "probado": true,
+      "descripcion": "Healthcheck. Útil para que el frontend detecte si el backend está arriba antes de mostrar la UI.",
+      "response200": {
+        "status": "ok",
+        "nivelDespliegue": "servidor_local | maquina_local | movil_ligero",
+        "timestamp": "2026-09-10T00:01:47.821Z"
+      }
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/auth/login",
+      "auth": "public",
+      "probado": true,
+      "descripcion": "Login simplificado: valida que exista una fila en usuarios con ese nombre y ese rol EXACTOS (no hay password). Pensado sobre todo para administrador (los clientes usan /auth/google).",
+      "requestBody": { "nombre": "string, requerido, max 150", "rol": "'cliente' | 'administrador', requerido" },
+      "response200": { "access_token": "string (JWT)" },
+      "errores": [
+        { "status": 401, "code": "UNAUTHORIZED", "cuando": "no existe usuario con ese nombre+rol exactos" },
+        { "status": 400, "cuando": "body inválido (falta nombre/rol, o rol no es uno de los dos valores)" }
+      ],
+      "notaImportante": "No es case-insensitive ni hace trim visible en los tests — el nombre debe matchear EXACTO como está guardado en la fila de usuarios (incluye tildes/mayúsculas)."
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/auth/google",
+      "auth": "public",
+      "probado": false,
+      "descripcion": "Login/registro con Google Identity Services. El frontend obtiene el idToken de Google client-side y lo manda acá; el backend lo verifica server-side contra GOOGLE_CLIENT_ID (nunca confía en el cliente). Si el email no existe en usuarios, crea la fila automáticamente con rol='cliente' (nunca administrador) y metodo_auth='google'.",
+      "requestBody": { "idToken": "string, requerido — el ID token (JWT) que devuelve Google Identity Services en el frontend" },
+      "response200": { "access_token": "string (JWT)" },
+      "errores": [
+        { "status": 401, "code": "UNAUTHORIZED", "cuando": "idToken inválido/expirado, o el token no trae email verificado" }
+      ]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/peliculas",
+      "auth": "jwt",
+      "probado": true,
+      "descripcion": "Lista todas las películas (activas e inactivas), sin paginar, ordenadas por idPelicula ASC.",
+      "response200": [
+        { "idPelicula": 1, "titulo": "string", "genero": "string | null", "duracionMin": 120, "clasificacion": "string | null", "estado": "'activa' | 'inactiva'" }
+      ]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/peliculas/:id",
+      "auth": "jwt",
+      "probado": false,
+      "response200": { "idPelicula": 1, "titulo": "string", "genero": "string | null", "duracionMin": 120, "clasificacion": "string | null", "estado": "'activa' | 'inactiva'" },
+      "errores": [{ "status": 404, "cuando": "no existe una película con ese id" }]
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/peliculas",
+      "auth": "jwt+administrador",
+      "probado": true,
+      "descripcion": "Crea una película. Queda auditada en log_acciones como 'crear_pelicula'.",
+      "requestBody": {
+        "titulo": "string, requerido, max 200",
+        "genero": "string, opcional, max 80",
+        "duracionMin": "int positivo, requerido",
+        "clasificacion": "string, opcional, max 10"
+      },
+      "response201": { "idPelicula": 1, "titulo": "string", "genero": null, "duracionMin": 90, "clasificacion": null, "estado": "activa" }
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/peliculas/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Actualización parcial (todos los campos de CrearPeliculaDto vuelven opcionales). Auditado como 'actualizar_pelicula'.",
+      "requestBody": { "titulo": "string, opcional", "genero": "string, opcional", "duracionMin": "int positivo, opcional", "clasificacion": "string, opcional" },
+      "response200": { "idPelicula": 1, "titulo": "string", "genero": "string | null", "duracionMin": 90, "clasificacion": "string | null", "estado": "'activa' | 'inactiva'" },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/peliculas/:id",
+      "auth": "jwt+administrador",
+      "probado": true,
+      "descripcion": "SOFT DELETE: pone estado='inactiva', NO borra la fila físicamente (la FK funciones→peliculas es RESTRICT/NO ACTION). Rechaza con 409 si la película tiene funciones futuras programadas. Auditado como 'eliminar_pelicula:<id>'.",
+      "response": "204 No Content",
+      "errores": [
+        { "status": 404, "cuando": "no existe" },
+        { "status": 409, "cuando": "tiene funciones con estado='programada' y fecha >= hoy" }
+      ]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/salas",
+      "auth": "jwt",
+      "probado": false,
+      "response200": [
+        { "idSala": 1, "nombre": "string", "capacidad": 100, "tipo": "string | null", "tiempoLimpiezaMin": 20 }
+      ]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/salas/:id",
+      "auth": "jwt",
+      "probado": false,
+      "response200": { "idSala": 1, "nombre": "string", "capacidad": 100, "tipo": "string | null", "tiempoLimpiezaMin": 20 },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/salas/:id/asientos",
+      "auth": "jwt",
+      "probado": false,
+      "descripcion": "Lista los asientos generados de esa sala. Todas las butacas de una sala son iguales entre sí — no hay tipo por butaca (ver notaTiposAsiento en _meta); el formato/categoría es de la sala (salas.tipo).",
+      "response200": [
+        { "idAsiento": 1, "idSala": 1, "fila": "A", "numero": 1 }
+      ]
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/salas",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Crea la sala y genera automáticamente sus asientos según capacidad/asientosPorFila (todos iguales, sin tipo — ver notaTiposAsiento en _meta). Auditado como 'crear_sala'.",
+      "requestBody": {
+        "nombre": "string, requerido, max 50",
+        "capacidad": "int positivo, requerido",
+        "tipo": "string, opcional, max 30 (ej. '2D','3D','VIP' — libre, no es FK)",
+        "tiempoLimpiezaMin": "int positivo, opcional (default 20 en BD)",
+        "asientosPorFila": "int positivo, opcional (default 10) — solo decide cómo repartir capacidad en filas al generar asientos, no es columna de salas"
+      },
+      "response201": { "idSala": 1, "nombre": "string", "capacidad": 100, "tipo": "string | null", "tiempoLimpiezaMin": 20 }
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/salas/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "A propósito NO permite cambiar capacidad ni asientosPorFila (regeneraría asientos, fuera de alcance). Mandar esos campos da 400 (forbidNonWhitelisted). Auditado como 'actualizar_sala'.",
+      "requestBody": { "nombre": "string, opcional", "tipo": "string, opcional", "tiempoLimpiezaMin": "int positivo, opcional" },
+      "response200": { "idSala": 1, "nombre": "string", "capacidad": 100, "tipo": "string | null", "tiempoLimpiezaMin": 20 },
+      "errores": [{ "status": 404 }, { "status": 400, "cuando": "body incluye capacidad o asientosPorFila" }]
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/salas/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Auditado como 'eliminar_sala'. No se probó el comportamiento exacto (soft vs hard delete) — revisar salas.service.ts antes de asumir shape de respuesta.",
+      "response": "204 No Content (asumido, no verificado en vivo)"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/precios",
+      "auth": "jwt",
+      "probado": false,
+      "response200": [
+        { "idPrecio": 1, "valor": "25.00", "vigenteDesde": "2026-01-01", "vigenteHasta": "2026-12-31" }
+      ],
+      "notaImportante": "valor viaja como STRING en la respuesta (columna numeric de Postgres, TypeORM no la castea a number para no perder precisión) — el frontend debe parsearlo (Number(valor) o similar) antes de operar con él. Ya no hay ningún campo de tipo de asiento (ver notaTiposAsiento en _meta): el precio es una lista simple por fecha de vigencia, y se elige un id_precio concreto al crear cada función."
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/precios/:id",
+      "auth": "jwt",
+      "probado": false,
+      "response200": { "idPrecio": 1, "valor": "25.00", "vigenteDesde": "2026-01-01", "vigenteHasta": null },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/precios",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Auditado como 'crear_precio'.",
+      "requestBody": {
+        "valor": "number positivo, requerido (el body manda number, la respuesta lo devuelve como string)",
+        "vigenteDesde": "string fecha ISO (YYYY-MM-DD), requerido",
+        "vigenteHasta": "string fecha ISO, opcional"
+      },
+      "response201": { "idPrecio": 1, "valor": "25.00", "vigenteDesde": "2026-01-01", "vigenteHasta": null }
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/precios/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Todos los campos de CrearPrecioDto opcionales. Auditado como 'actualizar_precio'.",
+      "requestBody": { "valor": "number positivo, opcional", "vigenteDesde": "string fecha ISO, opcional", "vigenteHasta": "string fecha ISO, opcional" },
+      "response200": { "idPrecio": 1, "valor": "30.00", "vigenteDesde": "2026-01-01", "vigenteHasta": null },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/precios/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Auditado como 'eliminar_precio'. Rechaza (409 esperado) si alguna función referencia este precio (id_precio en funciones es NO ACTION, no SET NULL como asumía la Fase 0) — no verificado en vivo.",
+      "response": "204 No Content (asumido)"
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/promociones",
+      "auth": "jwt",
+      "probado": false,
+      "response200": [
+        { "idPromocion": 1, "nombre": "string", "descripcion": "string | null", "tipoDescuento": "'porcentaje' | 'monto_fijo'", "valor": "10.00", "fechaInicio": "2026-01-01", "fechaFin": "2026-01-31", "activa": true }
+      ],
+      "notaImportante": "valor también viaja como string, igual que en precios."
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/promociones/:id",
+      "auth": "jwt",
+      "probado": false,
+      "response200": { "idPromocion": 1, "nombre": "string", "descripcion": null, "tipoDescuento": "porcentaje", "valor": "10.00", "fechaInicio": "2026-01-01", "fechaFin": "2026-01-31", "activa": true },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/promociones",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "No recibe 'activa' — nace true por default. Auditado como 'crear_promocion'.",
+      "requestBody": {
+        "nombre": "string, requerido, max 100",
+        "descripcion": "string, opcional",
+        "tipoDescuento": "'porcentaje' | 'monto_fijo', requerido",
+        "valor": "number positivo, requerido",
+        "fechaInicio": "string fecha ISO, requerido",
+        "fechaFin": "string fecha ISO, requerido"
+      },
+      "response201": { "idPromocion": 1, "nombre": "string", "descripcion": null, "tipoDescuento": "porcentaje", "valor": "10.00", "fechaInicio": "2026-01-01", "fechaFin": "2026-01-31", "activa": true }
+    },
+    {
+      "metodo": "PATCH",
+      "ruta": "/promociones/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Único DTO de 'actualizar' que expone un campo extra respecto a 'crear' (activa) para desactivarla sin borrarla. Auditado como 'actualizar_promocion'.",
+      "requestBody": { "nombre": "string, opcional", "descripcion": "string, opcional", "tipoDescuento": "'porcentaje'|'monto_fijo', opcional", "valor": "number positivo, opcional", "fechaInicio": "string fecha ISO, opcional", "fechaFin": "string fecha ISO, opcional", "activa": "boolean, opcional" },
+      "response200": { "idPromocion": 1, "nombre": "string", "descripcion": null, "tipoDescuento": "porcentaje", "valor": "10.00", "fechaInicio": "2026-01-01", "fechaFin": "2026-01-31", "activa": false },
+      "errores": [{ "status": 404 }]
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/promociones/:id",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Auditado como 'eliminar_promocion'. Antes de borrar, limpia sus filas de promocion_funcion en una transacción (esa FK sí es CASCADE a nivel de código, ver docs/db-schema-notes.md). Rechaza 409 si alguna venta ya usó la promoción.",
+      "response": "204 No Content (asumido)"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/promociones/:id/funciones/:idFuncion",
+      "auth": "jwt+administrador",
+      "probado": false,
+      "descripcion": "Asocia una promoción existente a una función existente (fila en promocion_funcion). Devuelve 201 (se crea la relación), no 204, aunque no exista todavía GET para leerla individualmente. Inservible hasta que exista el módulo funciones. Auditado como 'asociar_promocion_funcion'.",
+      "response201": { "idPromocion": 1, "idFuncion": 1 },
+      "errores": [{ "status": 404, "cuando": "la promoción o la función (cuando exista el módulo) no existen" }]
+    },
+    {
+      "metodo": "GET",
+      "ruta": "/audit/log-acciones",
+      "auth": "jwt+administrador",
+      "probado": true,
+      "descripcion": "Historial de auditoría (RF12) de TODAS las mutaciones de gestión (peliculas/salas/precios/promociones hoy; funciones/ventas cuando se implementen). Solo panel admin/QA, no para clientes.",
+      "queryParams": {
+        "usuarioId": "int, opcional",
+        "accion": "string, opcional — match exacto, ej. 'crear_pelicula', 'eliminar_pelicula:5' (el id va concatenado con ':' en las acciones de eliminar)",
+        "desde": "string fecha ISO, opcional",
+        "hasta": "string fecha ISO, opcional",
+        "limite": "int, opcional, default 200"
+      },
+      "response200": [
+        { "idLog": 2, "idUsuario": 4, "accion": "crear_pelicula", "fechaHora": "2026-09-10T03:57:42.514Z", "nivelDespliegue": "servidor_local" }
+      ],
+      "notaImportante": "Ordenado fechaHora DESC, idLog DESC (más reciente primero)."
+    }
+  ]
+}
