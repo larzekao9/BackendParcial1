@@ -19,6 +19,8 @@ import { FuncionesModule } from './modules/funciones/funciones.module.js';
 import { VentasModule } from './modules/ventas/ventas.module.js';
 import { PagosModule } from './modules/pagos/pagos.module.js';
 import { ReportesModule } from './modules/reportes/reportes.module.js';
+import { IaGatewayModule } from './modules/ia-gateway/ia-gateway.module.js';
+import { InteraccionesModule } from './modules/interacciones/interacciones.module.js';
 
 @Module({
   imports: [
@@ -41,8 +43,8 @@ import { ReportesModule } from './modules/reportes/reportes.module.js';
     VentasModule, // CU02 → Luis Blanco
     PagosModule, // RF04 (pago controlado, sin Stripe todavía) → Luis Blanco
     ReportesModule, // CU05 (RF08) → Luis Blanco
-    // Fuera de este módulo raíz por ahora, se agrega cuando esté lista:
-    //   IaGatewayModule → Roly
+    IaGatewayModule, // RF10 → Roly (Gateway de acciones de IA)
+    InteraccionesModule, // RF18/CU08 → Roly (Registro de interacciones de IA)
   ],
   providers: [
     // Guards globales: por default TODO endpoint requiere JWT válido y
