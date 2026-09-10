@@ -173,6 +173,53 @@ necesita un precio distinto (ej. "VIP cuesta más que 2D"), eso se resuelve
 eligiendo un `id_precio` distinto al crear la función para esa sala — no
 agregando de nuevo un tipo de asiento por butaca.
 
+## Poster real de películas — columna `poster_url` (2026-09-10)
+
+`peliculas` no tenía ninguna columna para el poster — el frontend usaba un placeholder
+genérico fijo. Se agrega para poder subir un poster real desde el panel admin.
+
+**Cambio aplicado (contra la Supabase real, 2026-09-10):**
+```sql
+ALTER TABLE peliculas ADD COLUMN poster_url VARCHAR(500);
+```
+Nullable, sin default — una película sin poster subido sigue funcionando (el frontend
+cae al placeholder si `posterUrl` es `null`, ver `src/core/posters.ts` del frontend).
+
+**Cómo llega la imagen**: el frontend sube el archivo directo a Cloudinary (cuenta propia
+del equipo, upload preset *unsigned*, sin pasar por este backend) y solo guarda la
+`secure_url` que devuelve Cloudinary en esta columna. El backend nunca recibe ni procesa
+el binario de la imagen — `CrearPeliculaDto.posterUrl` valida que sea una URL (`@IsUrl()`),
+nada más. Ver `src/api/cloudinary.api.ts` en el frontend.
+
+**Código actualizado en el mismo cambio** (dominio de Luis Ángel — avisarle, no estaba
+presente cuando se hizo):
+- `Pelicula` (entidad TypeORM): agrega `posterUrl: string | null`.
+- `CrearPeliculaInput` (`service-contracts.ts`) y `CrearPeliculaDto`: agregan `posterUrl?`.
+- `PeliculasService.crear`: pasa `posterUrl ?? null`. `actualizar` no se tocó (ya hacía
+  `Object.assign` directo con todo lo que llegue).
+
+## Módulo `pagos` activado — mapeo de columnas ya existentes (2026-09-10)
+
+**Sin cambio de esquema.** La tabla `pagos` y las columnas `ventas.metodo_pago_elegido`,
+`ventas.fecha_pago`, `ventas.id_pago_activo` ya estaban en `base_datos_cine_ia_completa.sql`
+desde antes (ver sección 9 y la FK `ventas_pago_activo_fkey`), pero ningún código las leía ni
+escribía — `VentasService.crear` dejaba toda venta en `estado='pendiente_pago'` para siempre.
+
+**Código agregado (dominio de Luis Blanco):**
+- `Pago` (entidad TypeORM nueva, `src/database/entities/pago.entity.ts`): mapea solo las
+  columnas que usa el alcance actual (`id_pago`, `id_venta`, `monto`, `moneda`, `metodo_pago`,
+  `estado`, `fecha_creacion`, `fecha_confirmacion`) — los campos `stripe_*`/`qr_*`/`metadata`/
+  auditoría quedan sin mapear hasta que se implemente esa pasarela.
+- `Venta` (entidad): agrega `metodoPagoElegido`, `fechaPago`, `idPagoActivo`.
+- Módulo `pagos` (`POST /pagos`, `PagosService.crear`): pago controlado por el propio sistema,
+  sin pasarela externa — solo acepta `metodo` `'efectivo'`/`'tarjeta'` (rechaza `'stripe'`/`'qr'`
+  con 400, todavía no implementados). Inserta el `Pago` en `estado='exitoso'` y actualiza la
+  venta a `estado='pagada'` en una transacción.
+
+**Regla para el resto del equipo:** cuando se implemente Stripe/QR real, es un cambio de
+`PagosService` (agregar los métodos y mapear las columnas `stripe_*`/`qr_*` que faltan) — no
+requiere tocar `base_datos_cine_ia_completa.sql`, ya está todo ahí.
+
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
 Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o
