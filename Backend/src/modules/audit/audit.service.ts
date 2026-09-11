@@ -47,14 +47,19 @@ export class AuditService {
     idUsuario: number,
     accion: string,
     nivelDespliegue?: string | null,
+    ipOrigen?: string | null,
+    userAgent?: string | null,
   ): Promise<LogAccion> {
     const registro = this.logAccionesRepo.create({
       idUsuario,
       accion,
       nivelDespliegue: nivelDespliegue ?? null,
+      ipOrigen: ipOrigen ?? null,
+      userAgent: userAgent ?? null,
     });
     return this.logAccionesRepo.save(registro);
   }
+
 
   /**
    * `GET /audit/log-acciones` — histórico ordenado de más reciente a más

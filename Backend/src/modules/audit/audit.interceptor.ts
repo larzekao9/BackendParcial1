@@ -63,10 +63,12 @@ export class AuditInterceptor implements NestInterceptor {
     const accion =
       idParam !== undefined && idParam !== null ? `${accionBase}:${idParam}` : accionBase;
     const nivelDespliegue = this.configService.get<string>('nivelDespliegue') ?? null;
+    const ipOrigen = (request.ip || request.headers?.['x-forwarded-for'] || request.socket?.remoteAddress || null) as string | null;
+    const userAgent = (request.headers?.['user-agent'] || null) as string | null;
 
     return next.handle().pipe(
       tap(() => {
-        this.auditService.log(usuario.sub, accion, nivelDespliegue).catch((error: unknown) => {
+        this.auditService.log(usuario.sub, accion, nivelDespliegue, ipOrigen, userAgent).catch((error: unknown) => {
           // Ver política de fallo arriba: auditar nunca rompe la mutación.
           console.error(
             '[AuditInterceptor] No se pudo registrar la acción en log_acciones',
@@ -76,4 +78,4 @@ export class AuditInterceptor implements NestInterceptor {
       }),
     );
   }
-}
+}

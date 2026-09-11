@@ -36,4 +36,11 @@ export class LogAccion {
 
   @Column({ name: 'nivel_despliegue', type: 'varchar', length: 30, nullable: true })
   nivelDespliegue!: string | null;
+
+  @Column({ name: 'ip_origen', type: 'varchar', length: 45, nullable: true })
+  ipOrigen!: string | null;
+
+  @Column({ name: 'user_agent', type: 'text', nullable: true })
+  userAgent!: string | null;
 }
+

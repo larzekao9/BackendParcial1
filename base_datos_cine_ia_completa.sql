@@ -324,8 +324,11 @@ CREATE TABLE log_acciones (
     id_usuario          INT NOT NULL REFERENCES usuarios(id_usuario),
     accion              TEXT NOT NULL,
     fecha_hora          TIMESTAMP DEFAULT NOW(),
-    nivel_despliegue    VARCHAR(30) -- servidor local, laptop, móvil
+    nivel_despliegue    VARCHAR(30), -- servidor local, laptop, móvil
+    ip_origen           VARCHAR(45), -- Captura IPv4/IPv6 de la terminal
+    user_agent          TEXT        -- Navegador, app móvil o agente de voz
 );
+
 
 -- =========================================================
 -- 11. INTERACCIONES DE IA / UI GENERATIVA (CU08, RF18)

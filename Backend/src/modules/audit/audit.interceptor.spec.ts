@@ -73,7 +73,7 @@ describe('AuditInterceptor (RF12)', () => {
       interceptor.intercept(makeContext({ etiqueta: 'crear_pelicula', user: ADMIN }), makeCallHandler()),
     );
 
-    expect(auditService.log).toHaveBeenCalledWith(7, 'crear_pelicula', 'servidor_local');
+    expect(auditService.log).toHaveBeenCalledWith(7, 'crear_pelicula', 'servidor_local', null, null);
     expect(configService.get).toHaveBeenCalledWith('nivelDespliegue');
   });
 
@@ -89,7 +89,7 @@ describe('AuditInterceptor (RF12)', () => {
       ),
     );
 
-    expect(auditService.log).toHaveBeenCalledWith(7, 'actualizar_precio:3', 'servidor_local');
+    expect(auditService.log).toHaveBeenCalledWith(7, 'actualizar_precio:3', 'servidor_local', null, null);
   });
 
   it('no registra si el request no trae usuario (los guards JWT corren antes, no debería pasar)', async () => {
@@ -120,7 +120,7 @@ describe('AuditInterceptor (RF12)', () => {
       ),
     );
 
-    expect(auditService.log).toHaveBeenCalledWith(8, 'crear_venta', 'servidor_local');
+    expect(auditService.log).toHaveBeenCalledWith(8, 'crear_venta', 'servidor_local', null, null);
   });
 
   it('una mutación exitosa NO se rompe aunque el INSERT de log_acciones falle', async () => {
@@ -136,7 +136,7 @@ describe('AuditInterceptor (RF12)', () => {
 
     expect(resultado).toEqual({ idPromocion: 42 });
     expect(handler.handle).toHaveBeenCalled();
-    expect(auditService.log).toHaveBeenCalledWith(7, 'crear_promocion', 'servidor_local');
+    expect(auditService.log).toHaveBeenCalledWith(7, 'crear_promocion', 'servidor_local', null, null);
   });
 
   it('un error del handler se propaga y NO deja registro de auditoría', async () => {

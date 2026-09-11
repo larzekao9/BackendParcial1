@@ -41,6 +41,8 @@ describe('AuditService (RF12)', () => {
         idUsuario: 5,
         accion: 'crear_pelicula',
         nivelDespliegue: 'servidor_local',
+        ipOrigen: null,
+        userAgent: null,
       });
       expect(repo.save).toHaveBeenCalled();
       expect(resultado).toMatchObject({ idLog: 1, idUsuario: 5, accion: 'crear_pelicula' });
@@ -56,13 +58,18 @@ describe('AuditService (RF12)', () => {
         idUsuario: 5,
         accion: 'crear_precio',
         nivelDespliegue: null,
+        ipOrigen: null,
+        userAgent: null,
       });
       expect(repo.create).toHaveBeenNthCalledWith(2, {
         idUsuario: 5,
         accion: 'crear_sala',
         nivelDespliegue: null,
+        ipOrigen: null,
+        userAgent: null,
       });
     });
+
   });
 
   describe('listar', () => {
