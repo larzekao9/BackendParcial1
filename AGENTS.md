@@ -19,31 +19,51 @@ detectada. Segundo parcial — Ingeniería de Software 2.
 | Componente | Tecnología | Estado |
 |---|---|---|
 | Backend de negocio | NestJS (TypeScript) | **En desarrollo** (`Backend/`) |
-| Frontend | React + Vite + Tailwind (`Parcial1_Sw2_Frontend/`, repo separado de `hebertsb`) | Mockup visual, sin conexión real al backend |
+| Frontend | React + Vite + Tailwind (`Parcial1_Sw2_Frontend/`, repo separado de `hebertsb`) | Mockup visual + login con Google conectado y probado end-to-end contra Supabase real, + agente de voz (`VoiceAgent.tsx`) ya conectado al servicio de IA real (`src/api/voice.api.ts`, ver abajo) |
 | App móvil cliente | Flutter (`mobile-app/`) | No existe todavía |
-| Servicio de IA (voz/NLU) | FastAPI (`ai-service/`) | No existe todavía |
+| Servicio de IA (voz/NLU) | FastAPI, repo propio `Backend_IA/agent_cine` (a cargo de Elías + el dev del frontend) | En desarrollo — el frontend ya le habla directo (`POST /voice-chat`), fuera del NestJS. `ia-gateway` (ver abajo) ya existe del lado del backend para recibir acciones confirmadas; falta que el orquestador de `agent_cine` lo invoque (`gateway_client.py`, todavía no existe) — hasta entonces, ninguna mutación real llega a la base por esta vía. |
 | Base de datos | PostgreSQL vía Supabase | Esquema en `base_datos_cine_ia_completa.sql` |
 
-**Discrepancia de contrato sin resolver**: el frontend llama a
-`POST /auth/google` con `{ idToken }` (login con Google). El backend real
-solo tiene `POST /auth/login` con `{ nombre, rol }` (login simplificado, ver
-`docs/contratos-servicios.md`). No asumas que esto ya se coordinó entre
-equipos.
+**Login con Google — YA implementado y probado, no es una discrepancia
+pendiente.** `POST /auth/google` existe en `AuthController`, verificado
+end-to-end (usuario real creado en Supabase con `rol='cliente'`). Ver
+`docs/db-schema-notes.md`, "Login con Google". Si ves una nota vieja
+diciendo lo contrario, está desactualizada — confiá en el código y en esta
+tabla antes que en comentarios de commits anteriores.
 
 ## Estado actual del backend
 
 - **Fase 0 (fundaciones)** — completa: scaffold NestJS, entidades TypeORM 1:1 con
-  el esquema (18 tablas tras la normalización de `tipos_asiento` y el agregado de
-  `pagos`/dulcería), guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
+  el esquema (17 tablas — `tipos_asiento` se agregó y se revirtió, ver
+  `docs/db-schema-notes.md`, "Reversión: tipo de asiento por sala, no por butaca"),
+  guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
   `ValidationPipe` y `HttpExceptionFilter` globales, login simplificado + login con Google.
-- **Luis Ángel** — completo y verificado tras la migración a `tipos_asiento` (51/51 tests):
-  `peliculas`, `salas`+`asientos`, `precios`, `promociones`. Pendiente NUEVO (agregado por
-  esta actualización de esquema, no estaba en el plan original): CRUD propio de
-  `tipos_asiento` y módulo `dulceria` (CU09/RF20). Ver `docs/plan-luis-angel.md` y
-  `docs/plan-backend.md`.
+- **Luis Ángel** — completo (65/65 tests en todo el backend): `peliculas`,
+  `salas`+`asientos`, `precios`, `promociones`. El CRUD de `tipos_asiento` ya NO
+  aplica (la tabla se eliminó). Pendiente: módulo `dulceria` (CU09/RF20). Ver
+  `docs/plan-luis-angel.md` y `docs/plan-backend.md`.
 - **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`, y `pagos` (nuevo:
   Stripe + QR + webhook, ver `docs/plan-backend.md`).
-- **Roly** — pendiente: `usuarios` (CRUD completo), `audit`, `ia-gateway`.
+- **Roly** — `audit` (RF12) completo, con IP registrada: `AuditService`,
+  `AuditInterceptor` global (`@Audit(...)` en el handler) y `GET /audit/log-acciones`.
+  `ia-gateway` (RF10) completo: `POST /ia-gateway/acciones`, `@Public()` (sin JWT —
+  ver nota abajo), revalida `evidenciaConfirmacion` (RF03/RF19) y rol (RF11)
+  server-side antes de despachar a `PeliculasService`/`FuncionesService`/`VentasService`
+  y auditar. Soporta `crear_pelicula`/`actualizar_pelicula`/`crear_funcion`/
+  `cancelar_funcion`/`crear_venta` (ver `AccionGestion` en `service-contracts.ts`).
+  Módulo `interacciones` también agregado (RF18). Pendiente: `usuarios` (CRUD
+  completo — aunque el frontend ya tiene `AdminUsuarios.tsx`/`usuarios.api.ts`
+  apuntando a algo, confirmar que el endpoint exista).
+  **Ojo de seguridad sin resolver:** `POST /ia-gateway/acciones` es `@Public()` sin
+  ningún mecanismo de autenticación de servicio a servicio — cualquiera que sepa la
+  URL puede mandar `evidenciaConfirmacion: true` y disparar una venta o cancelar una
+  función. Antes de la defensa, definir algo (API key compartida con `agent_cine`,
+  como mínimo) — no asumir que esto ya se resolvió solo porque el endpoint existe.
+  Nota para quien conecte `agent_cine` a esto: `crear_venta` pide `idFuncion`/
+  `idAsientos` como IDs reales de la base — las tools de cliente de `agent_cine`
+  hoy devuelven `pelicula`/`horario`/`preferencia` en texto (a propósito, ver
+  `ESTADO-IMPLEMENTACION.md` de ese repo), así que falta una traducción texto→ID en
+  el medio antes de poder invocar esto.
 
 ## Pendiente — App móvil (Flutter) + login Google en Android
 
