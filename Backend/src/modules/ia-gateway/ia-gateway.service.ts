@@ -6,6 +6,7 @@ import type {
 import { PeliculasService } from '../peliculas/peliculas.service.js';
 import { FuncionesService } from '../funciones/funciones.service.js';
 import { VentasService } from '../ventas/ventas.service.js';
+import { PagosService } from '../pagos/pagos.service.js';
 import { AuditService } from '../audit/audit.service.js';
 
 /**
@@ -14,11 +15,11 @@ import { AuditService } from '../audit/audit.service.js';
  * Es el único punto de entrada que `ai-service` (FastAPI) puede invocar para
  * mutar datos en el sistema real tras la confirmación verbal explícita del usuario.
  * Re-valida server-side que:
- *  1. `evidenciaConfirmacion === true` (RF03/RF19).
+ *  1. `evidenciaConfirmacion === true` (RF03 / RF19).
  *  2. El `rol` del usuario tenga los permisos necesarios para la acción (RF11).
  *
  * Despacha a los servicios de negocio correspondientes (`PeliculasService`,
- * `FuncionesService`, `VentasService`) y registra la auditoría (RF12).
+ * `FuncionesService`, `VentasService`, `PagosService`) y registra la auditoría (RF12).
  */
 @Injectable()
 export class IaGatewayService implements IaGatewayContract {
@@ -28,6 +29,7 @@ export class IaGatewayService implements IaGatewayContract {
     private readonly peliculasService: PeliculasService,
     private readonly funcionesService: FuncionesService,
     private readonly ventasService: VentasService,
+    private readonly pagosService: PagosService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -89,7 +91,19 @@ export class IaGatewayService implements IaGatewayContract {
           break;
         }
         case 'crear_venta': {
-          resultado = await this.ventasService.crear(accion.datos);
+          // Seguridad: Para un cliente, idUsuarioCliente SIEMPRE es el idUsuario autenticado
+          const idUsuarioCliente =
+            contexto.rol === 'cliente'
+              ? contexto.idUsuario
+              : (accion.datos.idUsuarioCliente ?? null);
+          resultado = await this.ventasService.crear({
+            ...accion.datos,
+            idUsuarioCliente,
+          });
+          break;
+        }
+        case 'crear_pago': {
+          resultado = await this.pagosService.crear(accion.datos);
           break;
         }
         default: {

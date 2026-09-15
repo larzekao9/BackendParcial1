@@ -2,6 +2,7 @@ import { IaGatewayService } from './ia-gateway.service.js';
 import type { PeliculasService } from '../peliculas/peliculas.service.js';
 import type { FuncionesService } from '../funciones/funciones.service.js';
 import type { VentasService } from '../ventas/ventas.service.js';
+import type { PagosService } from '../pagos/pagos.service.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AccionGestion } from '../../contracts/service-contracts.js';
 
@@ -9,6 +10,7 @@ describe('IaGatewayService (RF10)', () => {
   let peliculasService: Partial<PeliculasService>;
   let funcionesService: Partial<FuncionesService>;
   let ventasService: Partial<VentasService>;
+  let pagosService: Partial<PagosService>;
   let auditService: Partial<AuditService>;
   let service: IaGatewayService;
 
@@ -24,6 +26,9 @@ describe('IaGatewayService (RF10)', () => {
     ventasService = {
       crear: vi.fn().mockResolvedValue({ idVenta: 100, estado: 'pendiente_pago' }),
     };
+    pagosService = {
+      crear: vi.fn().mockResolvedValue({ idVenta: 100, estado: 'pagada' }),
+    };
     auditService = {
       log: vi.fn().mockResolvedValue({ idLog: 50 }),
     };
@@ -32,6 +37,7 @@ describe('IaGatewayService (RF10)', () => {
       peliculasService as PeliculasService,
       funcionesService as FuncionesService,
       ventasService as VentasService,
+      pagosService as PagosService,
       auditService as AuditService,
     );
   });
@@ -147,11 +153,12 @@ describe('IaGatewayService (RF10)', () => {
     expect(funcionesService.cancelar).toHaveBeenCalledWith(10);
   });
 
-  it('permite a un usuario cliente ejecutar crear_venta', async () => {
+  it('permite a un usuario cliente ejecutar crear_venta e impone su idUsuario autenticado', async () => {
     const accion: AccionGestion = {
       tipo: 'crear_venta',
       datos: {
         idFuncion: 10,
+        idUsuarioCliente: 999, // intento de id ajeno
         idAsientos: [1, 2],
         tipoRegistro: 'voz',
         confirmacionNoReembolso: true,
@@ -166,8 +173,31 @@ describe('IaGatewayService (RF10)', () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(ventasService.crear).toHaveBeenCalledWith(accion.datos);
+    expect(ventasService.crear).toHaveBeenCalledWith({
+      ...accion.datos,
+      idUsuarioCliente: 15,
+    });
     expect(auditService.log).toHaveBeenCalledWith(15, 'ia_crear_venta', 'servidor_local');
+  });
+
+  it('permite a un usuario ejecutar crear_pago correctamente', async () => {
+    const accion: AccionGestion = {
+      tipo: 'crear_pago',
+      datos: {
+        idVenta: 100,
+        metodo: 'tarjeta',
+      },
+    };
+
+    const res = await service.ejecutar(accion, {
+      idUsuario: 15,
+      rol: 'cliente',
+      evidenciaConfirmacion: true,
+    });
+
+    expect(res.ok).toBe(true);
+    expect(pagosService.crear).toHaveBeenCalledWith(accion.datos);
+    expect(auditService.log).toHaveBeenCalledWith(15, 'ia_crear_pago', 'servidor_local');
   });
 
   it('captura excepciones lanzadas por los servicios subordinados y retorna ok: false con motivo', async () => {
