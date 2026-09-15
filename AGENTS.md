@@ -38,12 +38,21 @@ tabla antes que en comentarios de commits anteriores.
   `docs/db-schema-notes.md`, "Reversión: tipo de asiento por sala, no por butaca"),
   guards globales (`JwtAuthGuard`/`RolesGuard`), `@Public()`/`@Roles()`,
   `ValidationPipe` y `HttpExceptionFilter` globales, login simplificado + login con Google.
-- **Luis Ángel** — completo (65/65 tests en todo el backend): `peliculas`,
-  `salas`+`asientos`, `precios`, `promociones`. El CRUD de `tipos_asiento` ya NO
-  aplica (la tabla se eliminó). Pendiente: módulo `dulceria` (CU09/RF20). Ver
-  `docs/plan-luis-angel.md` y `docs/plan-backend.md`.
-- **Luis Blanco** — pendiente: `funciones`, `ventas`, `reportes`, y `pagos` (nuevo:
-  Stripe + QR + webhook, ver `docs/plan-backend.md`).
+- **Luis Ángel** — sus 5 módulos completos: `peliculas`, `salas`+`asientos`,
+  `precios`, `promociones`, `dulceria` (CU09/RF20). El CRUD de `tipos_asiento` ya NO
+  aplica (la tabla se eliminó). Ver `docs/plan-luis-angel.md` y `plan-backend.md`
+  (raíz del repo, no `docs/` — el puntero anterior apuntaba mal).
+- **Luis Blanco** — sus módulos completos: `funciones` (CRUD + anti-solapamiento +
+  `GET /funciones/:id/disponibilidad`), `ventas` (flujo transaccional RF03/RF19,
+  con test de concurrencia real), `reportes` (3 endpoints), `pagos` en **alcance
+  mínimo a propósito** (efectivo/tarjeta, confirmación instantánea sin pasarela
+  externa — verificado end-to-end desde el frontend). **Pendiente, fuera de
+  alcance por decisión del equipo** (ver "Nota de alcance" en `plan-backend.md`):
+  Stripe y QR reales (`POST /pagos/webhook/stripe`, `POST /pagos/:id/confirmar-qr`
+  no existen todavía; la tabla `pagos` ya tiene las columnas listas). **Ojo:** RF04
+  en `CLAUDE.md` marca el pago con Stripe/QR como prioridad "Indispensable", no
+  opcional — confirmar con el equipo si esto se implementa antes de la defensa o
+  si el recorte se explica y se acepta tal cual en la presentación.
 - **Roly** — `audit` (RF12) completo, con IP registrada: `AuditService`,
   `AuditInterceptor` global (`@Audit(...)` en el handler) y `GET /audit/log-acciones`.
   `ia-gateway` (RF10) completo: `POST /ia-gateway/acciones`, `@Public()` (sin JWT —
@@ -51,9 +60,10 @@ tabla antes que en comentarios de commits anteriores.
   server-side antes de despachar a `PeliculasService`/`FuncionesService`/`VentasService`
   y auditar. Soporta `crear_pelicula`/`actualizar_pelicula`/`crear_funcion`/
   `cancelar_funcion`/`crear_venta` (ver `AccionGestion` en `service-contracts.ts`).
-  Módulo `interacciones` también agregado (RF18). Pendiente: `usuarios` (CRUD
-  completo — aunque el frontend ya tiene `AdminUsuarios.tsx`/`usuarios.api.ts`
-  apuntando a algo, confirmar que el endpoint exista).
+  Módulo `interacciones` también agregado (RF18). `usuarios` también tiene ya
+  `usuarios.controller.ts` con CRUD (confirmado por archivo, no solo por el
+  frontend) — con esto, **los 5 módulos de Roly en `plan-backend.md` están
+  completos**. `auth` (login simplificado + Google) completo desde antes.
   **Ojo de seguridad sin resolver:** `POST /ia-gateway/acciones` es `@Public()` sin
   ningún mecanismo de autenticación de servicio a servicio — cualquiera que sepa la
   URL puede mandar `evidenciaConfirmacion: true` y disparar una venta o cancelar una
