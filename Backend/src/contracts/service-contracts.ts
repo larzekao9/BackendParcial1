@@ -127,7 +127,8 @@ export type AccionGestion =
   | { tipo: 'actualizar_pelicula'; idPelicula: number; datos: Partial<CrearPeliculaInput> }
   | { tipo: 'crear_funcion'; datos: CrearFuncionInput }
   | { tipo: 'cancelar_funcion'; idFuncion: number }
-  | { tipo: 'crear_venta'; datos: CrearVentaInput };
+  | { tipo: 'crear_venta'; datos: CrearVentaInput }
+  | { tipo: 'crear_pago'; datos: CrearPagoInput };
 
 export interface IaGatewayContract {
   /**
