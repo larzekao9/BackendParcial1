@@ -7,6 +7,8 @@ import { PeliculasService } from '../peliculas/peliculas.service.js';
 import { FuncionesService } from '../funciones/funciones.service.js';
 import { VentasService } from '../ventas/ventas.service.js';
 import { PagosService } from '../pagos/pagos.service.js';
+import { PromocionesService } from '../promociones/promociones.service.js';
+import { PreciosService } from '../precios/precios.service.js';
 import { AuditService } from '../audit/audit.service.js';
 
 /**
@@ -30,6 +32,8 @@ export class IaGatewayService implements IaGatewayContract {
     private readonly funcionesService: FuncionesService,
     private readonly ventasService: VentasService,
     private readonly pagosService: PagosService,
+    private readonly promocionesService: PromocionesService,
+    private readonly preciosService: PreciosService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -55,8 +59,15 @@ export class IaGatewayService implements IaGatewayContract {
     const accionesSoloAdmin: AccionGestion['tipo'][] = [
       'crear_pelicula',
       'actualizar_pelicula',
+      'eliminar_pelicula',
       'crear_funcion',
       'cancelar_funcion',
+      'crear_promocion',
+      'actualizar_promocion',
+      'eliminar_promocion',
+      'crear_precio',
+      'actualizar_precio',
+      'eliminar_precio',
     ];
 
     if (accionesSoloAdmin.includes(accion.tipo) && contexto.rol !== 'administrador') {
@@ -82,6 +93,11 @@ export class IaGatewayService implements IaGatewayContract {
           );
           break;
         }
+        case 'eliminar_pelicula': {
+          await this.peliculasService.eliminar(accion.idPelicula);
+          resultado = { eliminado: true };
+          break;
+        }
         case 'crear_funcion': {
           resultado = await this.funcionesService.crear(accion.datos);
           break;
@@ -104,6 +120,35 @@ export class IaGatewayService implements IaGatewayContract {
         }
         case 'crear_pago': {
           resultado = await this.pagosService.crear(accion.datos);
+          break;
+        }
+        case 'crear_promocion': {
+          resultado = await this.promocionesService.crear(accion.datos);
+          break;
+        }
+        case 'actualizar_promocion': {
+          resultado = await this.promocionesService.actualizar(
+            accion.idPromocion,
+            accion.datos,
+          );
+          break;
+        }
+        case 'eliminar_promocion': {
+          await this.promocionesService.eliminar(accion.idPromocion);
+          resultado = { eliminado: true };
+          break;
+        }
+        case 'crear_precio': {
+          resultado = await this.preciosService.crear(accion.datos);
+          break;
+        }
+        case 'actualizar_precio': {
+          resultado = await this.preciosService.actualizar(accion.idPrecio, accion.datos);
+          break;
+        }
+        case 'eliminar_precio': {
+          await this.preciosService.eliminar(accion.idPrecio);
+          resultado = { eliminado: true };
           break;
         }
         default: {

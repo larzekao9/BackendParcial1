@@ -55,6 +55,23 @@ export interface PromocionesContract {
   getAplicable(idFuncion: number): Promise<Promocion | null>;
 }
 
+/** Usado por ia-gateway (gestionar_promocion, CU06) -- ver PromocionesService.crear/actualizar. */
+export interface CrearPromocionInput {
+  nombre: string;
+  descripcion?: string;
+  tipoDescuento: 'porcentaje' | 'monto_fijo';
+  valor: number;
+  fechaInicio: string; // ISO date
+  fechaFin: string; // ISO date
+}
+
+/** Usado por ia-gateway (gestionar_precio, CU07) -- ver PreciosService.crear/actualizar. */
+export interface CrearPrecioInput {
+  valor: number;
+  vigenteDesde: string; // ISO date
+  vigenteHasta?: string; // ISO date
+}
+
 export interface ProductoDulceriaContract {
   /** Productos disponibles (activos) del menú, opcionalmente filtrados por categoría. Lo consume VentasService. */
   getDisponibles(idCategoria?: number): Promise<ProductoDulceria[]>;
@@ -125,10 +142,17 @@ export interface PagosContract {
 export type AccionGestion =
   | { tipo: 'crear_pelicula'; datos: CrearPeliculaInput }
   | { tipo: 'actualizar_pelicula'; idPelicula: number; datos: Partial<CrearPeliculaInput> }
+  | { tipo: 'eliminar_pelicula'; idPelicula: number }
   | { tipo: 'crear_funcion'; datos: CrearFuncionInput }
   | { tipo: 'cancelar_funcion'; idFuncion: number }
   | { tipo: 'crear_venta'; datos: CrearVentaInput }
-  | { tipo: 'crear_pago'; datos: CrearPagoInput };
+  | { tipo: 'crear_pago'; datos: CrearPagoInput }
+  | { tipo: 'crear_promocion'; datos: CrearPromocionInput }
+  | { tipo: 'actualizar_promocion'; idPromocion: number; datos: Partial<CrearPromocionInput> & { activa?: boolean } }
+  | { tipo: 'eliminar_promocion'; idPromocion: number }
+  | { tipo: 'crear_precio'; datos: CrearPrecioInput }
+  | { tipo: 'actualizar_precio'; idPrecio: number; datos: Partial<CrearPrecioInput> }
+  | { tipo: 'eliminar_precio'; idPrecio: number };
 
 export interface IaGatewayContract {
   /**
