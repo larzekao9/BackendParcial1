@@ -4,12 +4,20 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { DetalleVentaEntrada } from '../../database/entities/detalle-venta-entrada.entity.js';
+import { DetalleVentaDulceria } from '../../database/entities/detalle-venta-dulceria.entity.js';
 import { DisponibilidadAsiento } from '../../database/entities/disponibilidad-asiento.entity.js';
 import { Funcion } from '../../database/entities/funcion.entity.js';
 import { PreciosService } from '../precios/precios.service.js';
 import { PromocionesService } from '../promociones/promociones.service.js';
+import { DulceriaService } from '../dulceria/dulceria.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { VentasContract, CrearVentaInput } from '../../contracts/service-contracts.js';
+
+/** Forma de respuesta de `buscarPorId` — ver comentario en ese método. */
+export type VentaConDetalle = Venta & {
+  detalleEntradas: DetalleVentaEntrada[];
+  detalleDulceria: DetalleVentaDulceria[];
+};
 
 /**
  * CU02 — el flujo completo de compra. Dominio de Luis Blanco. Sigue al pie los 7 pasos
@@ -34,9 +42,19 @@ import type { VentasContract, CrearVentaInput } from '../../contracts/service-co
  * 4. (ver paso 1, va primero por ser una validación barata).
  * 5. Marcar asientos como 'ocupado' + insertar `venta` + `detalle_venta_entradas` corre
  *    en UNA transacción de `DataSource` (mismo patrón que `SalasService.eliminar`).
- * 6. Dulcería (CU09/RF20) queda fuera de este alcance — no hay módulo `dulceria` todavía.
+ * 6. **Dulcería (CU09/RF20, agregado 2026-09-16):** `input.dulceria` es opcional — si viene,
+ *    cada `idProducto` se resuelve con `DulceriaService.buscarProductoPorId` ANTES de abrir
+ *    la transacción (mismo criterio que `funcion`/`precio`/`promocion`): rechaza toda la
+ *    venta con `NotFoundException` si el producto no existe, o con `BadRequestException` si
+ *    existe pero `disponible === false` (un producto dado de baja no se puede seguir
+ *    vendiendo). El precio SIEMPRE sale de `producto.precioBase` server-side, nunca del que
+ *    mande el cliente. `subtotal` de la venta pasa a ser entradas + dulcería; el descuento de
+ *    promoción se sigue calculando solo sobre el subtotal de ENTRADAS (las promociones están
+ *    atadas a `funciones`, no a `productos_dulceria`, ver `promocion_funcion` en el esquema).
+ *    Las filas de `detalle_venta_dulceria` se insertan dentro de la MISMA transacción que
+ *    `detalle_venta_entradas` — un solo carrito, nunca una venta aparte.
  * 7. La venta nace en `estado='pendiente_pago'` — pasa a `'pagada'` cuando el módulo
- *    `pagos` (todavía sin construir) confirme el cobro, nunca acá.
+ *    `pagos` confirme el cobro, nunca acá.
  *
  * CONCURRENCIA (dos compras simultáneas del mismo asiento): el paso 5 marca los asientos
  * como ocupados con un `UPDATE ... WHERE estado = 'disponible'` CONDICIONAL — nunca un
@@ -58,12 +76,17 @@ export class VentasService implements VentasContract {
   constructor(
     @InjectRepository(Venta)
     private readonly ventasRepo: Repository<Venta>,
+    @InjectRepository(DetalleVentaEntrada)
+    private readonly detalleEntradasRepo: Repository<DetalleVentaEntrada>,
+    @InjectRepository(DetalleVentaDulceria)
+    private readonly detalleDulceriaRepo: Repository<DetalleVentaDulceria>,
     @InjectRepository(Funcion)
     private readonly funcionesRepo: Repository<Funcion>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly preciosService: PreciosService,
     private readonly promocionesService: PromocionesService,
+    private readonly dulceriaService: DulceriaService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
   ) {}
@@ -92,14 +115,33 @@ export class VentasService implements VentasContract {
       : await this.preciosService.getVigente(new Date(funcion.fecha));
     const promocion = await this.promocionesService.getAplicable(input.idFuncion);
 
+    const itemsDulceria = input.dulceria ?? [];
+    const productosDulceria = await Promise.all(
+      itemsDulceria.map((item) => this.dulceriaService.buscarProductoPorId(item.idProducto)),
+    );
+    productosDulceria.forEach((producto) => {
+      if (!producto.disponible) {
+        throw new BadRequestException(
+          `El producto de dulcería "${producto.nombre}" ya no está disponible.`,
+        );
+      }
+    });
+
     const precioUnitarioNum = Number(precio.valor);
-    const subtotalNum = precioUnitarioNum * idAsientosUnicos.length;
+    const subtotalEntradasNum = precioUnitarioNum * idAsientosUnicos.length;
+    const subtotalDulceriaNum = itemsDulceria.reduce(
+      (acc, item, i) => acc + Number(productosDulceria[i].precioBase) * item.cantidad,
+      0,
+    );
+    const subtotalNum = subtotalEntradasNum + subtotalDulceriaNum;
+    // El descuento de promoción se calcula solo sobre entradas: las promociones se asocian
+    // a `funciones` (`promocion_funcion`), nunca a `productos_dulceria`.
     const descuentoNum = !promocion
       ? 0
       : promocion.tipoDescuento === 'porcentaje'
-        ? subtotalNum * (Number(promocion.valor) / 100)
+        ? subtotalEntradasNum * (Number(promocion.valor) / 100)
         // monto_fijo nunca deja el total negativo, aunque el descuento nominal supere el subtotal.
-        : Math.min(Number(promocion.valor), subtotalNum);
+        : Math.min(Number(promocion.valor), subtotalEntradasNum);
     const totalNum = subtotalNum - descuentoNum;
 
     return this.dataSource.transaction(async (manager) => {
@@ -137,6 +179,18 @@ export class VentasService implements VentasContract {
         })),
       );
 
+      if (itemsDulceria.length > 0) {
+        await manager.save(
+          DetalleVentaDulceria,
+          itemsDulceria.map((item, i) => ({
+            idVenta: venta.idVenta,
+            idProducto: item.idProducto,
+            cantidad: item.cantidad,
+            precioUnitario: productosDulceria[i].precioBase,
+          })),
+        );
+      }
+
       if (idUsuarioActor !== undefined) {
         const nivelDespliegue = this.configService.get<string>('nivelDespliegue') ?? null;
         await this.auditService.log(idUsuarioActor, `crear_venta:${venta.idVenta}`, nivelDespliegue);
@@ -146,18 +200,45 @@ export class VentasService implements VentasContract {
     });
   }
 
-  async buscarPorId(idVenta: number): Promise<Venta> {
-    const venta = await this.ventasRepo.findOne({ where: { idVenta } });
+  /**
+   * Detalle completo de una venta (RF04 — comprobante/entrada, y base de "mis
+   * compras" del cliente): además de la fila de `ventas`, resuelve `funcion`
+   * (con `pelicula`/`sala` anidadas) y `promocion` vía `relations`, y adjunta
+   * `detalleEntradas`/`detalleDulceria` con sus repos propios en vez de
+   * `relations` de TypeORM sobre `Venta` — `Venta` no declara esas dos
+   * relaciones inversas (serían las primeras `@OneToMany` del esquema, ver
+   * plan-mis-compras-dulceria.md) y no hace falta agregarlas solo para leer:
+   * una consulta filtrada por `idVenta` en cada repo de detalle alcanza.
+   */
+  async buscarPorId(idVenta: number): Promise<VentaConDetalle> {
+    const venta = await this.ventasRepo.findOne({
+      where: { idVenta },
+      relations: { funcion: { pelicula: true, sala: true }, promocion: true },
+    });
     if (!venta) {
       throw new NotFoundException(`No existe una venta con id ${idVenta}.`);
     }
-    return venta;
+
+    const [detalleEntradas, detalleDulceria] = await Promise.all([
+      this.detalleEntradasRepo.find({ where: { idVenta }, relations: { asiento: true } }),
+      this.detalleDulceriaRepo.find({ where: { idVenta }, relations: { producto: true } }),
+    ]);
+
+    return { ...venta, detalleEntradas, detalleDulceria };
   }
 
-  /** `idUsuarioCliente` filtra a las ventas de un cliente puntual — lo usa el controller para que un `cliente` solo vea las propias (RF11), nunca las de otro. */
+  /**
+   * `idUsuarioCliente` filtra a las ventas de un cliente puntual — lo usa el
+   * controller para que un `cliente` solo vea las propias (RF11), nunca las
+   * de otro. Trae `funcion` (+ `pelicula`/`sala`) y `promocion` para que
+   * "mis compras" no necesite una llamada extra por venta; el detalle
+   * asiento a asiento (y de dulcería) queda para `buscarPorId`, que es
+   * donde de verdad hace falta.
+   */
   async listar(idUsuarioCliente?: number): Promise<Venta[]> {
     return this.ventasRepo.find({
       where: idUsuarioCliente !== undefined ? { idUsuarioCliente } : {},
+      relations: { funcion: { pelicula: true, sala: true }, promocion: true },
       order: { fechaHora: 'DESC' },
     });
   }

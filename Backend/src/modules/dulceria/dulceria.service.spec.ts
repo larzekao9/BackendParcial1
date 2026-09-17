@@ -151,6 +151,7 @@ describe('DulceriaService (CU09/RF20)', () => {
         precioBase: '15',
         tipo: 'individual',
         etiqueta: null,
+        imagenUrl: null,
       });
       expect(resultado).toMatchObject({ nombre: 'Coca Cola Grande', precioBase: '15' });
     });
@@ -176,6 +177,7 @@ describe('DulceriaService (CU09/RF20)', () => {
         tipo: 'individual',
         etiqueta: 'Bestseller',
         disponible: true,
+        imagenUrl: null,
       };
       const { service, productosRepo } = buildService({
         productosRepo: {
@@ -214,6 +216,7 @@ describe('DulceriaService (CU09/RF20)', () => {
         tipo: 'individual',
         etiqueta: null,
         disponible: true,
+        imagenUrl: null,
       };
       const { service, categoriasRepo, productosRepo } = buildService({
         productosRepo: { findOne: vi.fn().mockResolvedValue(productoExistente) },
@@ -237,6 +240,7 @@ describe('DulceriaService (CU09/RF20)', () => {
         tipo: 'individual',
         etiqueta: null,
         disponible: true,
+        imagenUrl: null,
       };
       const { service, productosRepo } = buildService({
         productosRepo: {

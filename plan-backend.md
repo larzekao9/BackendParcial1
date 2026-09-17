@@ -26,6 +26,14 @@ al final del trabajo de Roly, no al principio.
 > butaca", y `Backend/src/contracts/service-contracts.ts` (`PreciosContract.getVigente`
 > cambió de firma como parte de esta reversión).
 >
+> **Actualización (2026-09-16) — imagen real en dulcería:** se agregó la columna
+> `productos_dulceria.imagen_url` (mismo patrón que `peliculas.poster_url`), subida
+> directa a Cloudinary desde el frontend sin pasar por el backend. Ver detalle en
+> `docs/db-schema-notes.md`, "Imagen real de productos de dulcería — columna
+> `imagen_url`". Módulo `dulceria` (Luis Ángel) ya cerrado antes de esto — el cambio
+> solo agrega el campo opcional a `CrearProductoDto`/`ActualizarProductoDto`, no
+> reabre alcance nuevo.
+>
 > **Actualización (2026-09-10) — `pagos` implementado (alcance mínimo):** se cerró el
 > único módulo pendiente de Luis Blanco. `PagosService.crear` confirma el cobro al
 > instante para `efectivo`/`tarjeta` (sin pasarela externa) y marca la venta como
@@ -114,6 +122,8 @@ Es el punto de partida de menor riesgo: CRUD con reglas propias, sin depender de
   un producto distinto en la tabla. Expone `getDisponibles(idCategoria?)` — lo consume
   Luis Blanco cuando agregue dulcería al carrito dentro de `ventas` (`detalle_venta_dulceria`
   usa la misma transacción de `VentasService.crear`, no un endpoint de venta separado).
+  **Actualización (2026-09-16):** agrega `imagen_url` (mismo mecanismo que
+  `peliculas.poster_url` — Cloudinary, carpeta `dulceria`, solo se guarda la `secure_url`).
 - Guards de rol: todo endpoint de escritura es `@Roles('administrador')`; lectura abierta a
   `cliente` y `administrador` (RF11).
 - Toda mutación de `peliculas`/`precios`/`promociones` llama a `AuditService.log(...)`
@@ -284,6 +294,25 @@ Supabase, y verificado end-to-end desde el frontend real, incluyendo el botón "
 Pagar" del kiosco — ver `service-contracts.ts` para los contratos). Con esto, **todos los
 módulos asignados a Luis Blanco en este documento están completos** salvo la integración
 real de Stripe/QR, que queda fuera de alcance a propósito (ver "Nota de alcance").
+
+> **Corrección (2026-09-16) — paso 6 de `ventas` (dulcería) no estaba implementado:**
+> el punto anterior decía "todos los módulos... completos", pero el paso 6 del diseño
+> de `VentasService.crear` (arriba, "sus filas van a `detalle_venta_dulceria`... el
+> subtotal de dulcería se suma al de entradas") existía en este documento desde antes
+> de la Fase 3 y nunca se codeó — `VentasService.crear` solo manejaba entradas.
+> Encontrado auditando el frontend real: `CandyBarSelection.tsx` armaba el carrito y
+> sumaba el total en pantalla, pero `POST /ventas` no tenía forma de recibirlo. Cerrado
+> ahora: `CrearVentaDto`/`CrearVentaInput` ganan `dulceria?: { idProducto, cantidad }[]`
+> opcional; `VentasService.crear` valida cada producto con
+> `DulceriaService.buscarProductoPorId` (rechaza con 404 si no existe, 400 si
+> `disponible=false`) ANTES de abrir la transacción, sin confiar en el precio que mande
+> el cliente, e inserta `detalle_venta_dulceria` en la MISMA transacción que
+> `detalle_venta_entradas`. El descuento de promoción sigue calculándose solo sobre el
+> subtotal de entradas (las promociones se atan a `funciones`, no a
+> `productos_dulceria`). Sin cambio de esquema — `detalle_venta_dulceria` ya existía.
+> `VentasModule` ahora importa `DulceriaModule`. Frontend: `BottomHUD.tsx` (el único
+> lugar que llama `POST /ventas` de verdad) manda `state.candyBarSeleccionado` mapeado
+> a `{ idProducto, cantidad }`.
 
 **Checkpoint obligatorio a mitad de semana 3**: Roly no puede empezar `ia-gateway` en
 serio hasta confirmar con Luis Ángel y Luis Blanco que las firmas acordadas en la Fase 0 no cambiaron.

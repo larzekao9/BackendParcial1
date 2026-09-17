@@ -89,6 +89,12 @@ export interface CrearVentaInput {
   confirmacionNoReembolso: boolean;
   /** RF19 — obligatorio en true cuando tipoRegistro === 'voz'. */
   confirmacionVerbalCheck: boolean;
+  /**
+   * Dulcería del mismo carrito (CU09/RF20, 2026-09-16) — opcional, una venta puede no
+   * llevar dulcería. Cada `idProducto` debe existir y estar `disponible`, si no
+   * `VentasService.crear` rechaza toda la venta (nunca solo el ítem de dulcería).
+   */
+  dulceria?: { idProducto: number; cantidad: number }[];
 }
 
 export interface VentasContract {
@@ -96,9 +102,11 @@ export interface VentasContract {
    * Rechaza la creación (ver .claude/agents/backend-nestjs.md) si:
    *  - algún asiento no está 'disponible' para la función,
    *  - confirmacionNoReembolso no es true,
-   *  - tipoRegistro === 'voz' y confirmacionVerbalCheck no es true.
+   *  - tipoRegistro === 'voz' y confirmacionVerbalCheck no es true,
+   *  - algún `dulceria[].idProducto` no existe o no está `disponible`.
    * Corre dentro de una transacción: valida disponibilidad, calcula precio
-   * y descuento, marca asientos como 'ocupado', inserta venta + detalle.
+   * y descuento, marca asientos como 'ocupado', inserta venta + detalle
+   * (entradas y, si vino, dulcería).
    */
   crear(input: CrearVentaInput): Promise<Venta>;
 }

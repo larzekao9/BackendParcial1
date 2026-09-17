@@ -5,9 +5,11 @@ import type { ConfigService } from '@nestjs/config';
 import { VentasService } from './ventas.service.js';
 import { PreciosService } from '../precios/precios.service.js';
 import { PromocionesService } from '../promociones/promociones.service.js';
+import { DulceriaService } from '../dulceria/dulceria.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { DetalleVentaEntrada } from '../../database/entities/detalle-venta-entrada.entity.js';
+import { DetalleVentaDulceria } from '../../database/entities/detalle-venta-dulceria.entity.js';
 import { DisponibilidadAsiento } from '../../database/entities/disponibilidad-asiento.entity.js';
 import { Funcion } from '../../database/entities/funcion.entity.js';
 import { Pelicula } from '../../database/entities/pelicula.entity.js';
@@ -16,6 +18,8 @@ import { Asiento } from '../../database/entities/asiento.entity.js';
 import { Precio } from '../../database/entities/precio.entity.js';
 import { Promocion } from '../../database/entities/promocion.entity.js';
 import { PromocionFuncion } from '../../database/entities/promocion-funcion.entity.js';
+import { CategoriaDulceria } from '../../database/entities/categoria-dulceria.entity.js';
+import { ProductoDulceria } from '../../database/entities/producto-dulceria.entity.js';
 import { LogAccion } from '../../database/entities/log-accion.entity.js';
 import { Usuario } from '../../database/entities/usuario.entity.js';
 
@@ -53,6 +57,7 @@ describe('VentasService.crear — concurrencia real (RF01/CU02)', () => {
       entities: [
         Venta,
         DetalleVentaEntrada,
+        DetalleVentaDulceria,
         DisponibilidadAsiento,
         Funcion,
         Pelicula,
@@ -61,6 +66,8 @@ describe('VentasService.crear — concurrencia real (RF01/CU02)', () => {
         Precio,
         Promocion,
         PromocionFuncion,
+        CategoriaDulceria,
+        ProductoDulceria,
         LogAccion,
         Usuario,
       ],
@@ -98,6 +105,8 @@ describe('VentasService.crear — concurrencia real (RF01/CU02)', () => {
     const construirServicio = () =>
       new VentasService(
         dataSource.getRepository(Venta),
+        dataSource.getRepository(DetalleVentaEntrada),
+        dataSource.getRepository(DetalleVentaDulceria),
         dataSource.getRepository(Funcion),
         dataSource,
         new PreciosService(dataSource.getRepository(Precio), dataSource.getRepository(Funcion)),
@@ -107,6 +116,10 @@ describe('VentasService.crear — concurrencia real (RF01/CU02)', () => {
           dataSource.getRepository(Funcion),
           dataSource.getRepository(Venta),
           dataSource,
+        ),
+        new DulceriaService(
+          dataSource.getRepository(CategoriaDulceria),
+          dataSource.getRepository(ProductoDulceria),
         ),
         new AuditService(dataSource.getRepository(LogAccion)),
         configServiceFake,

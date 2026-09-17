@@ -220,6 +220,35 @@ escribía — `VentasService.crear` dejaba toda venta en `estado='pendiente_pago
 `PagosService` (agregar los métodos y mapear las columnas `stripe_*`/`qr_*` que faltan) — no
 requiere tocar `base_datos_cine_ia_completa.sql`, ya está todo ahí.
 
+## Imagen real de productos de dulcería — columna `imagen_url` (2026-09-16)
+
+`productos_dulceria` no tenía ninguna columna para imagen — la vitrina de compra
+(`CandyBarSelection.tsx`) usaba un placeholder gris fijo. Se agrega para poder subir una
+foto real del producto desde el panel admin (`AdminDulceria.tsx`), mismo patrón que
+`peliculas.poster_url` (ver "Poster real de películas" arriba).
+
+**Cambio aplicado (contra la Supabase real, 2026-09-16):**
+```sql
+ALTER TABLE productos_dulceria ADD COLUMN imagen_url VARCHAR(500);
+```
+Nullable, sin default — un producto sin imagen subida sigue funcionando (el frontend cae
+a un placeholder si `imagenUrl` es `null`).
+
+**Cómo llega la imagen**: mismo mecanismo que los posters de película — el frontend sube
+el archivo directo a Cloudinary (misma cuenta, mismo upload preset *unsigned*) y solo
+guarda la `secure_url` en esta columna. Único cambio en `src/api/cloudinary.api.ts`:
+`subirImagen` ahora recibe la carpeta de destino como parámetro (antes tenía `'peliculas'`
+hardcodeado) para que los productos de dulcería no se mezclen con los posters — quedan en
+una carpeta `dulceria` separada dentro de la misma cuenta de Cloudinary. El backend nunca
+recibe ni procesa el binario de la imagen — `CrearProductoDto.imagenUrl` valida que sea una
+URL (`@IsUrl()`), nada más.
+
+**Código actualizado en el mismo cambio** (dominio de Luis Ángel):
+- `ProductoDulceria` (entidad TypeORM): agrega `imagenUrl: string | null`.
+- `CrearProductoDto`/`ActualizarProductoDto`: agregan `imagenUrl?` (`@IsUrl() @MaxLength(500)`).
+- `DulceriaService.crearProducto`: pasa `imagenUrl ?? null`. `actualizarProducto` no se
+  tocó (ya hacía `Object.assign` genérico con los campos definidos del DTO).
+
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
 Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o

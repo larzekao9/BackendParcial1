@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 
@@ -46,4 +47,10 @@ export class CrearProductoDto {
   @IsString()
   @MaxLength(40)
   etiqueta?: string;
+
+  /** URL de Cloudinary (subida sin firmar desde el frontend, ver src/api/cloudinary.api.ts del frontend). */
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(500)
+  imagenUrl?: string;
 }

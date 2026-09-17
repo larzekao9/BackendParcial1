@@ -53,4 +53,8 @@ export class ProductoDulceria {
 
   @Column({ type: 'boolean', default: true })
   disponible!: boolean;
+
+  /** URL de Cloudinary (2026-09-16) — mismo mecanismo que `Pelicula.posterUrl`: el frontend sube el archivo directo a Cloudinary (carpeta `dulceria`) y solo guarda la `secure_url` acá. */
+  @Column({ name: 'imagen_url', type: 'varchar', length: 500, nullable: true })
+  imagenUrl!: string | null;
 }

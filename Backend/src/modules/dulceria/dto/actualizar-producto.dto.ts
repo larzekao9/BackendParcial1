@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 
@@ -46,6 +47,11 @@ export class ActualizarProductoDto {
   @IsString()
   @MaxLength(40)
   etiqueta?: string;
+
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(500)
+  imagenUrl?: string;
 
   @IsOptional()
   @IsBoolean()

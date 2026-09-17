@@ -120,6 +120,7 @@ export class DulceriaService implements ProductoDulceriaContract {
       precioBase: dto.precioBase.toString(),
       tipo: dto.tipo ?? 'individual',
       etiqueta: dto.etiqueta ?? null,
+      imagenUrl: dto.imagenUrl ?? null,
     });
     return this.productosRepo.save(producto);
   }

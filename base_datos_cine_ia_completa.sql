@@ -258,7 +258,8 @@ CREATE TABLE productos_dulceria (
     precio_base     NUMERIC(10,2) NOT NULL,
     tipo            VARCHAR(20) DEFAULT 'individual' CHECK (tipo IN ('individual','combo')),
     etiqueta        VARCHAR(40),                   -- 'Bestseller', 'Ahorro 25%'
-    disponible      BOOLEAN DEFAULT TRUE
+    disponible      BOOLEAN DEFAULT TRUE,
+    imagen_url      VARCHAR(500)                   -- Cloudinary, mismo patrón que peliculas.poster_url (2026-09-16)
 );
 
 CREATE TABLE detalle_venta_dulceria (

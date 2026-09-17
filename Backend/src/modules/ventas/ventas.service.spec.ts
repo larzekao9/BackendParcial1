@@ -3,11 +3,13 @@ import { In } from 'typeorm';
 import { VentasService } from './ventas.service.js';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { DetalleVentaEntrada } from '../../database/entities/detalle-venta-entrada.entity.js';
+import { DetalleVentaDulceria } from '../../database/entities/detalle-venta-dulceria.entity.js';
 import { DisponibilidadAsiento } from '../../database/entities/disponibilidad-asiento.entity.js';
 import type { Funcion } from '../../database/entities/funcion.entity.js';
 import type { DataSource, Repository } from 'typeorm';
 import type { PreciosService } from '../precios/precios.service.js';
 import type { PromocionesService } from '../promociones/promociones.service.js';
+import type { DulceriaService } from '../dulceria/dulceria.service.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { ConfigService } from '@nestjs/config';
 
@@ -26,10 +28,13 @@ describe('VentasService', () => {
 
   function buildService(overrides?: {
     ventasRepo?: Partial<Repository<Venta>>;
+    detalleEntradasRepo?: Partial<Repository<DetalleVentaEntrada>>;
+    detalleDulceriaRepo?: Partial<Repository<DetalleVentaDulceria>>;
     funcionesRepo?: Partial<Repository<Funcion>>;
     manager?: Partial<Record<string, unknown>>;
     preciosService?: Partial<PreciosService>;
     promocionesService?: Partial<PromocionesService>;
+    dulceriaService?: Partial<DulceriaService>;
     auditService?: Partial<AuditService>;
   }) {
     const ventasRepo = {
@@ -37,6 +42,16 @@ describe('VentasService', () => {
       find: vi.fn(),
       ...overrides?.ventasRepo,
     } as unknown as Repository<Venta>;
+
+    const detalleEntradasRepo = {
+      find: vi.fn().mockResolvedValue([]),
+      ...overrides?.detalleEntradasRepo,
+    } as unknown as Repository<DetalleVentaEntrada>;
+
+    const detalleDulceriaRepo = {
+      find: vi.fn().mockResolvedValue([]),
+      ...overrides?.detalleDulceriaRepo,
+    } as unknown as Repository<DetalleVentaDulceria>;
 
     const funcionesRepo = {
       findOne: vi.fn().mockResolvedValue(funcionDefault),
@@ -69,6 +84,11 @@ describe('VentasService', () => {
       ...overrides?.promocionesService,
     } as unknown as PromocionesService;
 
+    const dulceriaService = {
+      buscarProductoPorId: vi.fn(),
+      ...overrides?.dulceriaService,
+    } as unknown as DulceriaService;
+
     const auditService = {
       log: vi.fn().mockResolvedValue(undefined),
       ...overrides?.auditService,
@@ -80,21 +100,27 @@ describe('VentasService', () => {
 
     const service = new VentasService(
       ventasRepo,
+      detalleEntradasRepo,
+      detalleDulceriaRepo,
       funcionesRepo,
       dataSource,
       preciosService,
       promocionesService,
+      dulceriaService,
       auditService,
       configService,
     );
     return {
       service,
       ventasRepo,
+      detalleEntradasRepo,
+      detalleDulceriaRepo,
       funcionesRepo,
       dataSource,
       manager,
       preciosService,
       promocionesService,
+      dulceriaService,
       auditService,
     };
   }
@@ -113,6 +139,10 @@ describe('VentasService', () => {
 
   function detalleGuardadoEn(manager: { save: ReturnType<typeof vi.fn> }) {
     return manager.save.mock.calls.find(([entity]: [unknown]) => entity === DetalleVentaEntrada)?.[1];
+  }
+
+  function detalleDulceriaGuardadoEn(manager: { save: ReturnType<typeof vi.fn> }) {
+    return manager.save.mock.calls.find(([entity]: [unknown]) => entity === DetalleVentaDulceria)?.[1];
   }
 
   it('rechaza sin confirmacionNoReembolso (RF03) antes de abrir la transacción', async () => {
@@ -237,6 +267,113 @@ describe('VentasService', () => {
     });
   });
 
+  it('con dulcería: valida cada producto, suma su subtotal SIN descuento, e inserta detalle_venta_dulceria', async () => {
+    const { service, manager, dulceriaService } = buildService({
+      dulceriaService: {
+        buscarProductoPorId: vi.fn((idProducto: number) =>
+          Promise.resolve(
+            idProducto === 3
+              ? {
+                  idProducto: 3,
+                  idCategoria: 1,
+                  nombre: 'Popcorn',
+                  descripcion: null,
+                  precioBase: '15.00',
+                  tipo: 'individual' as const,
+                  etiqueta: null,
+                  disponible: true,
+                  imagenUrl: null,
+                }
+              : {
+                  idProducto: 4,
+                  idCategoria: 2,
+                  nombre: 'Coca Cola',
+                  descripcion: null,
+                  precioBase: '8.00',
+                  tipo: 'individual' as const,
+                  etiqueta: null,
+                  disponible: true,
+                  imagenUrl: null,
+                },
+          ),
+        ),
+      },
+      promocionesService: {
+        getAplicable: vi
+          .fn()
+          .mockResolvedValue({ idPromocion: 5, tipoDescuento: 'porcentaje', valor: '10' }),
+      },
+    });
+
+    await service.crear({
+      ...inputValido,
+      dulceria: [
+        { idProducto: 3, cantidad: 2 },
+        { idProducto: 4, cantidad: 1 },
+      ],
+    });
+
+    expect(dulceriaService.buscarProductoPorId).toHaveBeenCalledWith(3);
+    expect(dulceriaService.buscarProductoPorId).toHaveBeenCalledWith(4);
+    // entradas: 40.00, dulcería: 15*2 + 8*1 = 38.00 → subtotal 78.00.
+    // descuento: solo 10% de las entradas (40.00) = 4.00 → total 74.00.
+    expect(ventaGuardadaEn(manager)).toMatchObject({
+      subtotal: '78.00',
+      descuentoAplicado: '4.00',
+      total: '74.00',
+    });
+    expect(detalleDulceriaGuardadoEn(manager)).toEqual([
+      { idVenta: 100, idProducto: 3, cantidad: 2, precioUnitario: '15.00' },
+      { idVenta: 100, idProducto: 4, cantidad: 1, precioUnitario: '8.00' },
+    ]);
+  });
+
+  it('sin dulcería no se llama a DulceriaService ni se inserta detalle_venta_dulceria', async () => {
+    const { service, manager, dulceriaService } = buildService();
+
+    await service.crear(inputValido);
+
+    expect(dulceriaService.buscarProductoPorId).not.toHaveBeenCalled();
+    expect(detalleDulceriaGuardadoEn(manager)).toBeUndefined();
+  });
+
+  it('dulcería con producto inexistente lanza NotFoundException antes de abrir la transacción', async () => {
+    const { service, dataSource, dulceriaService } = buildService({
+      dulceriaService: {
+        buscarProductoPorId: vi.fn().mockRejectedValue(new NotFoundException()),
+      },
+    });
+
+    await expect(
+      service.crear({ ...inputValido, dulceria: [{ idProducto: 999, cantidad: 1 }] }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(dulceriaService.buscarProductoPorId).toHaveBeenCalledWith(999);
+  });
+
+  it('dulcería con producto no disponible lanza BadRequestException antes de abrir la transacción', async () => {
+    const { service, dataSource } = buildService({
+      dulceriaService: {
+        buscarProductoPorId: vi.fn().mockResolvedValue({
+          idProducto: 3,
+          idCategoria: 1,
+          nombre: 'Popcorn descontinuado',
+          descripcion: null,
+          precioBase: '15.00',
+          tipo: 'individual',
+          etiqueta: null,
+          disponible: false,
+          imagenUrl: null,
+        }),
+      },
+    });
+
+    await expect(
+      service.crear({ ...inputValido, dulceria: [{ idProducto: 3, cantidad: 1 }] }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
   it('idAsientos duplicados en el input se deduplican antes de marcar disponibilidad', async () => {
     const { service, manager } = buildService({
       manager: { update: vi.fn().mockResolvedValue({ affected: 1 }) },
@@ -283,13 +420,52 @@ describe('VentasService', () => {
     await expect(service.buscarPorId(999)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('listar sin idUsuarioCliente trae todas las ventas (vista administrador)', async () => {
+  it('buscarPorId trae función/película/sala/promoción vía relations, y el detalle de entradas/dulcería aparte', async () => {
+    const ventaConRelaciones = {
+      idVenta: 100,
+      idUsuarioCliente: 7,
+      funcion: { idFuncion: 10, pelicula: { titulo: 'Dune' }, sala: { nombre: 'Sala 1' } },
+      promocion: null,
+    };
+    const { service, ventasRepo, detalleEntradasRepo, detalleDulceriaRepo } = buildService({
+      ventasRepo: { findOne: vi.fn().mockResolvedValue(ventaConRelaciones) },
+      detalleEntradasRepo: {
+        find: vi.fn().mockResolvedValue([{ idAsiento: 1, asiento: { fila: 'A', numero: 1 } }]),
+      },
+      detalleDulceriaRepo: {
+        find: vi.fn().mockResolvedValue([{ idProducto: 3, producto: { nombre: 'Popcorn' } }]),
+      },
+    });
+
+    const venta = await service.buscarPorId(100);
+
+    expect(ventasRepo.findOne).toHaveBeenCalledWith({
+      where: { idVenta: 100 },
+      relations: { funcion: { pelicula: true, sala: true }, promocion: true },
+    });
+    expect(detalleEntradasRepo.find).toHaveBeenCalledWith({
+      where: { idVenta: 100 },
+      relations: { asiento: true },
+    });
+    expect(detalleDulceriaRepo.find).toHaveBeenCalledWith({
+      where: { idVenta: 100 },
+      relations: { producto: true },
+    });
+    expect(venta.detalleEntradas).toEqual([{ idAsiento: 1, asiento: { fila: 'A', numero: 1 } }]);
+    expect(venta.detalleDulceria).toEqual([{ idProducto: 3, producto: { nombre: 'Popcorn' } }]);
+    expect(venta.funcion).toMatchObject({ pelicula: { titulo: 'Dune' } });
+  });
+
+  it('listar sin idUsuarioCliente trae todas las ventas (vista administrador) con relations', async () => {
     const { service, ventasRepo } = buildService();
 
     await service.listar();
 
     expect(ventasRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: {} }),
+      expect.objectContaining({
+        where: {},
+        relations: { funcion: { pelicula: true, sala: true }, promocion: true },
+      }),
     );
   });
 
