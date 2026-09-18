@@ -3,6 +3,8 @@ import type { PeliculasService } from '../peliculas/peliculas.service.js';
 import type { FuncionesService } from '../funciones/funciones.service.js';
 import type { VentasService } from '../ventas/ventas.service.js';
 import type { PagosService } from '../pagos/pagos.service.js';
+import type { PromocionesService } from '../promociones/promociones.service.js';
+import type { PreciosService } from '../precios/precios.service.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AccionGestion } from '../../contracts/service-contracts.js';
 
@@ -11,6 +13,8 @@ describe('IaGatewayService (RF10)', () => {
   let funcionesService: Partial<FuncionesService>;
   let ventasService: Partial<VentasService>;
   let pagosService: Partial<PagosService>;
+  let promocionesService: Partial<PromocionesService>;
+  let preciosService: Partial<PreciosService>;
   let auditService: Partial<AuditService>;
   let service: IaGatewayService;
 
@@ -18,6 +22,7 @@ describe('IaGatewayService (RF10)', () => {
     peliculasService = {
       crear: vi.fn().mockResolvedValue({ idPelicula: 1, titulo: 'Inception' }),
       actualizar: vi.fn().mockResolvedValue({ idPelicula: 1, titulo: 'Inception Editada' }),
+      eliminar: vi.fn().mockResolvedValue(undefined),
     };
     funcionesService = {
       crear: vi.fn().mockResolvedValue({ idFuncion: 10 }),
@@ -29,6 +34,16 @@ describe('IaGatewayService (RF10)', () => {
     pagosService = {
       crear: vi.fn().mockResolvedValue({ idVenta: 100, estado: 'pagada' }),
     };
+    promocionesService = {
+      crear: vi.fn().mockResolvedValue({ idPromocion: 1, nombre: 'Promo 2x1' }),
+      actualizar: vi.fn().mockResolvedValue({ idPromocion: 1, nombre: 'Promo 2x1 Editada' }),
+      eliminar: vi.fn().mockResolvedValue(undefined),
+    };
+    preciosService = {
+      crear: vi.fn().mockResolvedValue({ idPrecio: 1, valor: '25.00' }),
+      actualizar: vi.fn().mockResolvedValue({ idPrecio: 1, valor: '30.00' }),
+      eliminar: vi.fn().mockResolvedValue(undefined),
+    };
     auditService = {
       log: vi.fn().mockResolvedValue({ idLog: 50 }),
     };
@@ -38,6 +53,8 @@ describe('IaGatewayService (RF10)', () => {
       funcionesService as FuncionesService,
       ventasService as VentasService,
       pagosService as PagosService,
+      promocionesService as PromocionesService,
+      preciosService as PreciosService,
       auditService as AuditService,
     );
   });
@@ -198,6 +215,128 @@ describe('IaGatewayService (RF10)', () => {
     expect(res.ok).toBe(true);
     expect(pagosService.crear).toHaveBeenCalledWith(accion.datos);
     expect(auditService.log).toHaveBeenCalledWith(15, 'ia_crear_pago', 'servidor_local');
+  });
+
+  it('ejecuta eliminar_pelicula correctamente con rol administrador', async () => {
+    const accion: AccionGestion = { tipo: 'eliminar_pelicula', idPelicula: 1 };
+
+    const res = await service.ejecutar(accion, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+
+    expect(res).toEqual({ ok: true, resultado: { eliminado: true } });
+    expect(peliculasService.eliminar).toHaveBeenCalledWith(1);
+  });
+
+  it('rechaza crear_promocion si el rol es cliente (RF11)', async () => {
+    const accion: AccionGestion = {
+      tipo: 'crear_promocion',
+      datos: {
+        nombre: 'Promo 2x1',
+        tipoDescuento: 'porcentaje',
+        valor: 50,
+        fechaInicio: '2026-10-01',
+        fechaFin: '2026-10-31',
+      },
+    };
+
+    const res = await service.ejecutar(accion, {
+      idUsuario: 3,
+      rol: 'cliente',
+      evidenciaConfirmacion: true,
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      motivo: "Acción rechazada: La acción 'crear_promocion' requiere privilegios de administrador.",
+    });
+    expect(promocionesService.crear).not.toHaveBeenCalled();
+  });
+
+  it('ejecuta crear_promocion correctamente con rol administrador', async () => {
+    const accion: AccionGestion = {
+      tipo: 'crear_promocion',
+      datos: {
+        nombre: 'Promo 2x1',
+        tipoDescuento: 'porcentaje',
+        valor: 50,
+        fechaInicio: '2026-10-01',
+        fechaFin: '2026-10-31',
+      },
+    };
+
+    const res = await service.ejecutar(accion, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+      nivelDespliegue: 'servidor_local',
+    });
+
+    expect(res.ok).toBe(true);
+    expect(promocionesService.crear).toHaveBeenCalledWith(accion.datos);
+    expect(auditService.log).toHaveBeenCalledWith(9, 'ia_crear_promocion', 'servidor_local');
+  });
+
+  it('ejecuta actualizar_promocion y eliminar_promocion correctamente', async () => {
+    const actualizar: AccionGestion = {
+      tipo: 'actualizar_promocion',
+      idPromocion: 1,
+      datos: { activa: false },
+    };
+    const resActualizar = await service.ejecutar(actualizar, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+    expect(resActualizar.ok).toBe(true);
+    expect(promocionesService.actualizar).toHaveBeenCalledWith(1, { activa: false });
+
+    const eliminar: AccionGestion = { tipo: 'eliminar_promocion', idPromocion: 1 };
+    const resEliminar = await service.ejecutar(eliminar, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+    expect(resEliminar).toEqual({ ok: true, resultado: { eliminado: true } });
+    expect(promocionesService.eliminar).toHaveBeenCalledWith(1);
+  });
+
+  it('ejecuta crear_precio, actualizar_precio y eliminar_precio correctamente', async () => {
+    const crear: AccionGestion = {
+      tipo: 'crear_precio',
+      datos: { valor: 25, vigenteDesde: '2026-10-01' },
+    };
+    const resCrear = await service.ejecutar(crear, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+    expect(resCrear.ok).toBe(true);
+    expect(preciosService.crear).toHaveBeenCalledWith(crear.datos);
+
+    const actualizar: AccionGestion = {
+      tipo: 'actualizar_precio',
+      idPrecio: 1,
+      datos: { valor: 30 },
+    };
+    const resActualizar = await service.ejecutar(actualizar, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+    expect(resActualizar.ok).toBe(true);
+    expect(preciosService.actualizar).toHaveBeenCalledWith(1, { valor: 30 });
+
+    const eliminar: AccionGestion = { tipo: 'eliminar_precio', idPrecio: 1 };
+    const resEliminar = await service.ejecutar(eliminar, {
+      idUsuario: 9,
+      rol: 'administrador',
+      evidenciaConfirmacion: true,
+    });
+    expect(resEliminar).toEqual({ ok: true, resultado: { eliminado: true } });
+    expect(preciosService.eliminar).toHaveBeenCalledWith(1);
   });
 
   it('captura excepciones lanzadas por los servicios subordinados y retorna ok: false con motivo', async () => {
