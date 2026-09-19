@@ -26,4 +26,8 @@ export class Pelicula {
   /** URL de Cloudinary (2026-09-10) — no hay upload firmado por backend, el frontend sube directo con un preset unsigned. */
   @Column({ name: 'poster_url', type: 'varchar', length: 500, nullable: true })
   posterUrl!: string | null;
+
+  /** Descripción de la película (2026-09-18) — la carga el panel admin o el agente de voz. */
+  @Column({ type: 'text', nullable: true })
+  sinopsis!: string | null;
 }

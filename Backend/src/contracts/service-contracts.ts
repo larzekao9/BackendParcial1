@@ -29,6 +29,8 @@ export interface CrearPeliculaInput {
   clasificacion?: string | null;
   /** URL de Cloudinary — ver "Poster real de películas" en docs/db-schema-notes.md (2026-09-10). */
   posterUrl?: string | null;
+  /** Ver "Sinopsis de películas" en docs/db-schema-notes.md (2026-09-18). */
+  sinopsis?: string | null;
 }
 
 export interface PeliculasContract {

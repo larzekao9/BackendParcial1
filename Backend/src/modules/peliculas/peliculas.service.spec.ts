@@ -40,8 +40,28 @@ describe('PeliculasService (CU03)', () => {
       duracionMin: 150,
       clasificacion: null,
       posterUrl: null,
+      sinopsis: null,
     });
     expect(resultado).toMatchObject({ titulo: 'Batman', duracionMin: 150 });
+  });
+
+  it('crear guarda la sinopsis cuando viene (p. ej. cargada por el agente de voz)', async () => {
+    const { service, peliculasRepo } = buildService();
+
+    const resultado = await service.crear({
+      titulo: 'Oppenheimer',
+      duracionMin: 180,
+      clasificacion: '+16 Años',
+      sinopsis: 'La historia del físico que lideró el Proyecto Manhattan.',
+    });
+
+    expect(peliculasRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clasificacion: '+16 Años',
+        sinopsis: 'La historia del físico que lideró el Proyecto Manhattan.',
+      }),
+    );
+    expect(resultado.sinopsis).toBe('La historia del físico que lideró el Proyecto Manhattan.');
   });
 
   it('actualizar aplica el patch sobre la película existente', async () => {

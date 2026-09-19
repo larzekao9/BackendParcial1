@@ -25,4 +25,10 @@ export class CrearPeliculaDto {
   @IsUrl()
   @MaxLength(500)
   posterUrl?: string;
+
+  /** Descripción de la película. La columna es TEXT; el tope de 2000 es solo para evitar abusos. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  sinopsis?: string;
 }

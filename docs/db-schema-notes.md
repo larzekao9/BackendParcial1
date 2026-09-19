@@ -249,6 +249,37 @@ URL (`@IsUrl()`), nada más.
 - `DulceriaService.crearProducto`: pasa `imagenUrl ?? null`. `actualizarProducto` no se
   tocó (ya hacía `Object.assign` genérico con los campos definidos del DTO).
 
+## Sinopsis de películas — columna `sinopsis` (2026-09-18)
+
+`peliculas` no tenía dónde guardar una descripción. Al pedirle al agente de voz "creá una
+película con esta descripción…" el dato no tenía columna a la que ir. Se agrega para
+poder cargarla por voz y desde el panel admin.
+
+**Cambio aplicado (contra la Supabase real, 2026-09-18)** con
+`Backend/scripts/migrar-sinopsis-produccion.ts` (misma convención que
+`migrar-audit-produccion.ts`):
+```sql
+ALTER TABLE peliculas ADD COLUMN IF NOT EXISTS sinopsis TEXT;
+```
+Nullable, sin default: las películas existentes quedan con `sinopsis = NULL` y nada se
+rompe. Es `TEXT` (no `VARCHAR`), a diferencia de `clasificacion VARCHAR(10)`, que fue justo
+la columna que hizo fallar la creación por voz ("Mayores de 17 años" no entra en 10
+caracteres).
+
+**Nota sobre validación:** `IaGatewayService` llama directo a `PeliculasService.crear` y por
+eso NO pasa por el `ValidationPipe` de los DTOs — un valor demasiado largo llega hasta
+Postgres y vuelve como "value too long for type character varying(10)". La validación
+previa vive en el agente (`agent_cine/app/validacion.py`), que espeja los límites de
+`CrearPeliculaDto`.
+
+**Código actualizado en el mismo cambio** (dominio de Luis Ángel — avisarle):
+- `Pelicula` (entidad TypeORM): agrega `sinopsis: string | null`.
+- `CrearPeliculaInput` (`service-contracts.ts`) y `CrearPeliculaDto` (y por herencia
+  `ActualizarPeliculaDto`): agregan `sinopsis?` (`@IsString() @MaxLength(2000)`; el tope
+  es solo anti-abuso, la columna no tiene límite).
+- `PeliculasService.crear`: pasa `sinopsis ?? null`. `actualizar` no se tocó (`Object.assign`
+  genérico).
+
 ## Próximos cambios de esquema (pendientes, no ejecutados)
 
 Ninguno todavía. Cuando Luis Ángel, Luis Blanco o Roly necesiten un campo o

@@ -39,7 +39,8 @@ CREATE TABLE peliculas (
     duracion_min    INT NOT NULL,
     clasificacion   VARCHAR(10),
     estado          VARCHAR(20) DEFAULT 'activa' CHECK (estado IN ('activa','inactiva')),
-    poster_url      VARCHAR(500)
+    poster_url      VARCHAR(500),
+    sinopsis        TEXT                           -- descripción de la película (2026-09-18)
 );
 
 -- =========================================================
