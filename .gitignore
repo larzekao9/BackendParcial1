@@ -49,3 +49,7 @@ ProyectGrupal_Taller_SW2_Frontend/
 Parcial1_Sw2_Frontend/
 Backend/tsconfig.build.tsbuildinfo
 Backend/*.tsbuildinfo
+*.drawio
+*.xml
+*.xmi
+
