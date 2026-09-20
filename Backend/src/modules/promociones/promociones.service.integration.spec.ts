@@ -9,6 +9,7 @@ import { Sala } from '../../database/entities/sala.entity.js';
 import { Precio } from '../../database/entities/precio.entity.js';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { Usuario } from '../../database/entities/usuario.entity.js';
+import { Pago } from '../../database/entities/pago.entity.js';
 
 loadDotenv();
 
@@ -64,6 +65,7 @@ describe('PromocionesService.getAplicable — integración contra Postgres real 
         Precio,
         Venta,
         Usuario,
+        Pago,
       ],
       synchronize: false,
     });

@@ -22,6 +22,7 @@ import { CategoriaDulceria } from '../../database/entities/categoria-dulceria.en
 import { ProductoDulceria } from '../../database/entities/producto-dulceria.entity.js';
 import { LogAccion } from '../../database/entities/log-accion.entity.js';
 import { Usuario } from '../../database/entities/usuario.entity.js';
+import { Pago } from '../../database/entities/pago.entity.js';
 
 loadDotenv();
 
@@ -70,6 +71,7 @@ describe('VentasService.crear — concurrencia real (RF01/CU02)', () => {
         ProductoDulceria,
         LogAccion,
         Usuario,
+        Pago,
       ],
       synchronize: false,
     });

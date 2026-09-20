@@ -3,6 +3,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Usuario } from './usuario.entity.js';
@@ -76,6 +77,9 @@ export class Venta {
   @ManyToOne(() => Promocion, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'id_promocion' })
   promocion?: Promocion;
+
+  @OneToMany('Pago', 'venta')
+  pagos?: any[];
 
   @Column({ name: 'fecha_hora', type: 'timestamp', default: () => 'NOW()' })
   fechaHora!: Date;
