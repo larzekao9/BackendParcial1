@@ -345,8 +345,8 @@ describe('ReportesService', () => {
     const resultado = await service.serieTemporal({ agrupacion: 'dia' });
 
     expect(resultado).toEqual([
-      { fecha: '2026-01-08T00:00:00.000Z', totalVentas: 3, montoTotal: '150.00', cantidadEntradas: 7 },
-      { fecha: '2026-01-09T00:00:00.000Z', totalVentas: 2, montoTotal: '100.00', cantidadEntradas: 5 },
+      { fecha: '2026-01-08', totalVentas: 3, montoTotal: '150.00', cantidadEntradas: 7 },
+      { fecha: '2026-01-09', totalVentas: 2, montoTotal: '100.00', cantidadEntradas: 5 },
     ]);
   });
 

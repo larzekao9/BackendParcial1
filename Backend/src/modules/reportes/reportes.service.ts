@@ -408,10 +408,10 @@ async porProducto(filtro: RangoFechas = {}): Promise<ReportePorProducto[]> {
   async serieTemporal(filtro: RangoFechas = {}): Promise<SerieTemporalPunto[]> {
     const agrupacion = filtro.agrupacion ?? 'dia';
     const trunc = agrupacion === 'dia'
-      ? "DATE_TRUNC('day', venta.fechaHora)"
+      ? "DATE_TRUNC('day', venta.fechaHora)::date"
       : agrupacion === 'semana'
-        ? "DATE_TRUNC('week', venta.fechaHora)"
-        : "DATE_TRUNC('month', venta.fechaHora)";
+        ? "DATE_TRUNC('week', venta.fechaHora)::date"
+        : "DATE_TRUNC('month', venta.fechaHora)::date";
 
     const qbVentas = this.ventasRepo
       .createQueryBuilder('venta')
@@ -423,7 +423,7 @@ async porProducto(filtro: RangoFechas = {}): Promise<ReportePorProducto[]> {
     this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
     this.filtrarEstado(qbVentas, 'venta.estado', filtro);
     const filasVentas = await qbVentas.getRawMany<{
-      fecha: string;
+      fecha: string | Date;
       totalVentas: string;
       montoTotal: string;
     }>();
@@ -437,19 +437,23 @@ async porProducto(filtro: RangoFechas = {}): Promise<ReportePorProducto[]> {
     this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
     this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
     const filasEntradas = await qbEntradas.getRawMany<{
-      fecha: string;
+      fecha: string | Date;
       cantidadEntradas: string;
     }>();
 
+    // Normalize dates to ISO string (YYYY-MM-DD) for consistent Map keys
+    const toDateKey = (d: string | Date): string =>
+      d instanceof Date ? d.toISOString().split('T')[0] : d.split('T')[0];
+
     const entradasPorFecha = new Map(
-      filasEntradas.map((fila) => [fila.fecha, Number(fila.cantidadEntradas)]),
+      filasEntradas.map((fila) => [toDateKey(fila.fecha), Number(fila.cantidadEntradas)]),
     );
 
     return filasVentas.map((fila) => ({
-      fecha: fila.fecha,
+      fecha: toDateKey(fila.fecha), // return normalized date
       totalVentas: Number(fila.totalVentas),
       montoTotal: Number(fila.montoTotal).toFixed(2),
-      cantidadEntradas: entradasPorFecha.get(fila.fecha) ?? 0,
+      cantidadEntradas: entradasPorFecha.get(toDateKey(fila.fecha)) ?? 0,
     }));
   }
 
