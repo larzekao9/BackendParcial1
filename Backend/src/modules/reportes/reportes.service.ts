@@ -15,6 +15,12 @@ export interface RangoFechas {
   hasta?: string;
   /** Si true, incluye estados no pagados (pendiente, confirmada, pendiente_pago, anulada, cancelada). Default: false (solo pagada). */
   incluirNoPagadas?: boolean;
+  /** Agrupación temporal para serie: 'dia' | 'semana' | 'mes'. Default: 'dia'. */
+  agrupacion?: 'dia' | 'semana' | 'mes';
+  /** Límite de resultados por página. */
+  limit?: number;
+  /** Offset para paginación. */
+  offset?: number;
 }
 
 export interface ResumenVentas {
@@ -73,6 +79,21 @@ export interface DashboardResponse {
   montoTotal: DashboardMetrica;
   totalVentas: DashboardMetrica;
   cantidadEntradas: DashboardMetrica;
+}
+
+export interface SerieTemporalPunto {
+  fecha: string;
+  montoTotal: string;
+  cantidadEntradas: number;
+  totalVentas: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 /**
@@ -376,6 +397,265 @@ async porProducto(filtro: RangoFechas = {}): Promise<ReportePorProducto[]> {
           resumenAnterior.cantidadEntradas,
         ),
       },
+    };
+  }
+
+  /**
+   * RF08/CU05 — serie temporal de ventas agrupada por día/semana/mes.
+   * Reutiliza la misma lógica de dos queries (ventas + detalle) para evitar fan-out.
+   * Devuelve puntos para gráficos de línea/barras en el frontend.
+   */
+  async serieTemporal(filtro: RangoFechas = {}): Promise<SerieTemporalPunto[]> {
+    const agrupacion = filtro.agrupacion ?? 'dia';
+    const trunc = agrupacion === 'dia'
+      ? "DATE_TRUNC('day', venta.fechaHora)"
+      : agrupacion === 'semana'
+        ? "DATE_TRUNC('week', venta.fechaHora)"
+        : "DATE_TRUNC('month', venta.fechaHora)";
+
+    const qbVentas = this.ventasRepo
+      .createQueryBuilder('venta')
+      .select(`${trunc}`, 'fecha')
+      .addSelect('COUNT(venta.idVenta)', 'totalVentas')
+      .addSelect('COALESCE(SUM(venta.total), 0)', 'montoTotal')
+      .groupBy('fecha')
+      .orderBy('fecha', 'ASC');
+    this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
+    const filasVentas = await qbVentas.getRawMany<{
+      fecha: string;
+      totalVentas: string;
+      montoTotal: string;
+    }>();
+
+    const qbEntradas = this.detalleRepo
+      .createQueryBuilder('detalle')
+      .innerJoin('detalle.venta', 'venta')
+      .select(`${trunc}`, 'fecha')
+      .addSelect('COUNT(detalle.idDetalle)', 'cantidadEntradas')
+      .groupBy('fecha');
+    this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
+    const filasEntradas = await qbEntradas.getRawMany<{
+      fecha: string;
+      cantidadEntradas: string;
+    }>();
+
+    const entradasPorFecha = new Map(
+      filasEntradas.map((fila) => [fila.fecha, Number(fila.cantidadEntradas)]),
+    );
+
+    return filasVentas.map((fila) => ({
+      fecha: fila.fecha,
+      totalVentas: Number(fila.totalVentas),
+      montoTotal: Number(fila.montoTotal).toFixed(2),
+      cantidadEntradas: entradasPorFecha.get(fila.fecha) ?? 0,
+    }));
+  }
+
+  /**
+   * Versión paginada de porPelicula.
+   * Devuelve data + metadatos de paginación (total, limit, offset, hasMore).
+   */
+  async porPeliculaPaginado(filtro: RangoFechas = {}): Promise<PaginatedResponse<ReportePorPelicula>> {
+    const limit = filtro.limit ?? 50;
+    const offset = filtro.offset ?? 0;
+
+    const qbVentas = this.ventasRepo
+      .createQueryBuilder('venta')
+      .innerJoin('venta.funcion', 'funcion')
+      .innerJoin('funcion.pelicula', 'pelicula')
+      .select('pelicula.idPelicula', 'idPelicula')
+      .addSelect('pelicula.titulo', 'titulo')
+      .addSelect('COUNT(venta.idVenta)', 'totalVentas')
+      .addSelect('COALESCE(SUM(venta.total), 0)', 'montoTotal')
+      .groupBy('pelicula.idPelicula')
+      .addGroupBy('pelicula.titulo')
+      .orderBy('totalVentas', 'DESC')
+      .limit(limit)
+      .offset(offset);
+    this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
+    const filasVentas = await qbVentas.getRawMany<{
+      idPelicula: string;
+      titulo: string;
+      totalVentas: string;
+      montoTotal: string;
+    }>();
+
+    // Count total distinct peliculas for pagination metadata
+    const qbCount = this.ventasRepo
+      .createQueryBuilder('venta')
+      .innerJoin('venta.funcion', 'funcion')
+      .innerJoin('funcion.pelicula', 'pelicula')
+      .select('COUNT(DISTINCT pelicula.idPelicula)', 'total');
+    this.filtrarPorRango(qbCount, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbCount, 'venta.estado', filtro);
+    const countResult = await qbCount.getRawOne<{ total: string }>();
+    const total = Number(countResult?.total ?? 0);
+
+    const qbEntradas = this.detalleRepo
+      .createQueryBuilder('detalle')
+      .innerJoin('detalle.venta', 'venta')
+      .innerJoin('venta.funcion', 'funcion')
+      .select('funcion.idPelicula', 'idPelicula')
+      .addSelect('COUNT(detalle.idDetalle)', 'cantidadEntradas')
+      .groupBy('funcion.idPelicula');
+    this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
+    const filasEntradas = await qbEntradas.getRawMany<{ idPelicula: string; cantidadEntradas: string }>();
+
+    const entradasPorPelicula = new Map(
+      filasEntradas.map((fila) => [Number(fila.idPelicula), Number(fila.cantidadEntradas)]),
+    );
+
+    const data = filasVentas.map((fila) => ({
+      idPelicula: Number(fila.idPelicula),
+      titulo: fila.titulo,
+      totalVentas: Number(fila.totalVentas),
+      montoTotal: Number(fila.montoTotal).toFixed(2),
+      cantidadEntradas: entradasPorPelicula.get(Number(fila.idPelicula)) ?? 0,
+    }));
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    };
+  }
+
+  /**
+   * Versión paginada de porFuncion.
+   */
+  async porFuncionPaginado(filtro: RangoFechas = {}): Promise<PaginatedResponse<ReportePorFuncion>> {
+    const limit = filtro.limit ?? 50;
+    const offset = filtro.offset ?? 0;
+
+    const qbVentas = this.ventasRepo
+      .createQueryBuilder('venta')
+      .innerJoin('venta.funcion', 'funcion')
+      .innerJoin('funcion.pelicula', 'pelicula')
+      .select('funcion.idFuncion', 'idFuncion')
+      .addSelect('pelicula.titulo', 'titulo')
+      .addSelect('funcion.fecha', 'fecha')
+      .addSelect('funcion.horaInicio', 'horaInicio')
+      .addSelect('COUNT(venta.idVenta)', 'totalVentas')
+      .addSelect('COALESCE(SUM(venta.total), 0)', 'montoTotal')
+      .groupBy('funcion.idFuncion')
+      .addGroupBy('pelicula.titulo')
+      .addGroupBy('funcion.fecha')
+      .addGroupBy('funcion.horaInicio')
+      .orderBy('totalVentas', 'DESC')
+      .limit(limit)
+      .offset(offset);
+    this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
+    const filasVentas = await qbVentas.getRawMany<{
+      idFuncion: string;
+      titulo: string;
+      fecha: string;
+      horaInicio: string;
+      totalVentas: string;
+      montoTotal: string;
+    }>();
+
+    const qbCount = this.ventasRepo
+      .createQueryBuilder('venta')
+      .innerJoin('venta.funcion', 'funcion')
+      .select('COUNT(DISTINCT funcion.idFuncion)', 'total');
+    this.filtrarPorRango(qbCount, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbCount, 'venta.estado', filtro);
+    const countResult = await qbCount.getRawOne<{ total: string }>();
+    const total = Number(countResult?.total ?? 0);
+
+    const qbEntradas = this.detalleRepo
+      .createQueryBuilder('detalle')
+      .innerJoin('detalle.venta', 'venta')
+      .select('venta.idFuncion', 'idFuncion')
+      .addSelect('COUNT(detalle.idDetalle)', 'cantidadEntradas')
+      .groupBy('venta.idFuncion');
+    this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
+    const filasEntradas = await qbEntradas.getRawMany<{ idFuncion: string; cantidadEntradas: string }>();
+
+    const entradasPorFuncion = new Map(
+      filasEntradas.map((fila) => [Number(fila.idFuncion), Number(fila.cantidadEntradas)]),
+    );
+
+    const data = filasVentas.map((fila) => ({
+      idFuncion: Number(fila.idFuncion),
+      titulo: fila.titulo,
+      fecha: fila.fecha,
+      horaInicio: fila.horaInicio,
+      totalVentas: Number(fila.totalVentas),
+      montoTotal: Number(fila.montoTotal).toFixed(2),
+      cantidadEntradas: entradasPorFuncion.get(Number(fila.idFuncion)) ?? 0,
+    }));
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    };
+  }
+
+  /**
+   * Versión paginada de porProducto.
+   */
+  async porProductoPaginado(filtro: RangoFechas = {}): Promise<PaginatedResponse<ReportePorProducto>> {
+    const limit = filtro.limit ?? 50;
+    const offset = filtro.offset ?? 0;
+
+    const qb = this.detalleDulceriaRepo
+      .createQueryBuilder('detalle')
+      .innerJoin('detalle.venta', 'venta')
+      .innerJoin('detalle.producto', 'producto')
+      .select('producto.idProducto', 'idProducto')
+      .addSelect('producto.nombre', 'nombre')
+      .addSelect('SUM(detalle.cantidad)', 'cantidadVendida')
+      .addSelect('COALESCE(SUM(detalle.cantidad * detalle.precio_unitario), 0)', 'montoTotal')
+      .groupBy('producto.idProducto')
+      .addGroupBy('producto.nombre')
+      .orderBy('cantidadVendida', 'DESC')
+      .limit(limit)
+      .offset(offset);
+    this.filtrarPorRango(qb, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qb, 'venta.estado', filtro);
+    const filas = await qb.getRawMany<{
+      idProducto: string;
+      nombre: string;
+      cantidadVendida: string;
+      montoTotal: string;
+    }>();
+
+    // Count total for pagination
+    const qbCount = this.detalleDulceriaRepo
+      .createQueryBuilder('detalle')
+      .innerJoin('detalle.venta', 'venta')
+      .innerJoin('detalle.producto', 'producto')
+      .select('COUNT(DISTINCT producto.idProducto)', 'total');
+    this.filtrarPorRango(qbCount, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbCount, 'venta.estado', filtro);
+    const countResult = await qbCount.getRawOne<{ total: string }>();
+    const total = Number(countResult?.total ?? 0);
+
+    const data = filas.map((fila) => ({
+      idProducto: Number(fila.idProducto),
+      nombre: fila.nombre,
+      cantidadVendida: Number(fila.cantidadVendida),
+      montoTotal: Number(fila.montoTotal).toFixed(2),
+    }));
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
     };
   }
 

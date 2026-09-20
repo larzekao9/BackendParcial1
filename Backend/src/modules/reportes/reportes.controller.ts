@@ -27,26 +27,50 @@ export class ReportesController {
   }
 
   @Roles('administrador')
+  @Get('por-pelicula/paginado')
+  porPeliculaPaginado(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porPeliculaPaginado(filtro);
+  }
+
+  @Roles('administrador')
   @Get('por-funcion')
   porFuncion(@Query() filtro: RangoFechasDto) {
     return this.reportesService.porFuncion(filtro);
   }
 
   @Roles('administrador')
-@Get('por-producto')
-   porProducto(@Query() filtro: RangoFechasDto) {
-     return this.reportesService.porProducto(filtro);
-   }
+  @Get('por-funcion/paginado')
+  porFuncionPaginado(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porFuncionPaginado(filtro);
+  }
 
-   @Roles('administrador')
-   @Get('por-metodo-pago')
-   porMetodoPago(@Query() filtro: RangoFechasDto) {
-     return this.reportesService.porMetodoPago(filtro);
-   }
+  @Roles('administrador')
+  @Get('por-producto')
+  porProducto(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porProducto(filtro);
+  }
 
-   @Roles('administrador')
-   @Get('por-promocion')
-   porPromocion(@Query() filtro: RangoFechasDto) {
-     return this.reportesService.porPromocion(filtro);
-   }
+  @Roles('administrador')
+  @Get('por-producto/paginado')
+  porProductoPaginado(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porProductoPaginado(filtro);
+  }
+
+  @Roles('administrador')
+  @Get('serie-temporal')
+  serieTemporal(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.serieTemporal(filtro);
+  }
+
+  @Roles('administrador')
+  @Get('por-metodo-pago')
+  porMetodoPago(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porMetodoPago(filtro);
+  }
+
+  @Roles('administrador')
+  @Get('por-promocion')
+  porPromocion(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.porPromocion(filtro);
+  }
 }

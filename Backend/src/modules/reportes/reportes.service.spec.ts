@@ -12,6 +12,9 @@ describe('ReportesService', () => {
       groupBy: vi.fn().mockReturnThis(),
       addGroupBy: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
       getRawOne: vi.fn().mockResolvedValue(rawResult),
       getRawMany: vi.fn().mockResolvedValue(rawResult),
     };
@@ -321,7 +324,145 @@ describe('ReportesService', () => {
     expect(llamadas[1][0]?.incluirNoPagadas).toBe(true);
     expect(llamadas[0][0]?.desde).toBeDefined();
     expect(llamadas[0][0]?.hasta).toBeDefined();
+    expect(llamadas[1][0]?.desde).toBeDefined();
+    expect(llamadas[1][0]?.hasta).toBeDefined();
 
     resumenSpy.mockRestore();
+  });
+
+  // --- Serie temporal ---
+  it('serieTemporal agrupa por día y combina ventas + entradas', async () => {
+    const ventasQb = buildQueryBuilderMock([
+      { fecha: '2026-01-08T00:00:00.000Z', totalVentas: '3', montoTotal: '150.00' },
+      { fecha: '2026-01-09T00:00:00.000Z', totalVentas: '2', montoTotal: '100.00' },
+    ]);
+    const detalleQb = buildQueryBuilderMock([
+      { fecha: '2026-01-08T00:00:00.000Z', cantidadEntradas: '7' },
+      { fecha: '2026-01-09T00:00:00.000Z', cantidadEntradas: '5' },
+    ]);
+    const { service } = buildService({ ventasQb, detalleQb });
+
+    const resultado = await service.serieTemporal({ agrupacion: 'dia' });
+
+    expect(resultado).toEqual([
+      { fecha: '2026-01-08T00:00:00.000Z', totalVentas: 3, montoTotal: '150.00', cantidadEntradas: 7 },
+      { fecha: '2026-01-09T00:00:00.000Z', totalVentas: 2, montoTotal: '100.00', cantidadEntradas: 5 },
+    ]);
+  });
+
+  it('serieTemporal por default filtra venta.estado = pagada', async () => {
+    const ventasQb = buildQueryBuilderMock([]);
+    const detalleQb = buildQueryBuilderMock([]);
+    const { service } = buildService({ ventasQb, detalleQb });
+
+    await service.serieTemporal();
+
+    expect(ventasQb.andWhere).toHaveBeenCalledWith('venta.estado = :estado', { estado: 'pagada' });
+    expect(detalleQb.andWhere).toHaveBeenCalledWith('venta.estado = :estado', { estado: 'pagada' });
+  });
+
+  // --- Paginación porPelicula ---
+  it('porPeliculaPaginado devuelve data + metadatos de paginación', async () => {
+    const ventasQbData = buildQueryBuilderMock([
+      { idPelicula: '1', titulo: 'Peli A', totalVentas: '5', montoTotal: '250.00' },
+      { idPelicula: '2', titulo: 'Peli B', totalVentas: '3', montoTotal: '150.00' },
+    ]);
+    const detalleQb = buildQueryBuilderMock([
+      { idPelicula: '1', cantidadEntradas: '12' },
+      { idPelicula: '2', cantidadEntradas: '8' },
+    ]);
+    const ventasQbCount = buildQueryBuilderMock({ total: '2' });
+
+    const { service, ventasRepo } = buildService({ ventasQb: ventasQbData, detalleQb, detalleDulceriaQb: {} });
+    ventasRepo.createQueryBuilder
+      .mockReturnValueOnce(ventasQbData)
+      .mockReturnValueOnce(ventasQbCount);
+
+    const resultado = await service.porPeliculaPaginado({ limit: 10, offset: 0 });
+
+    expect(resultado).toEqual({
+      data: [
+        { idPelicula: 1, titulo: 'Peli A', totalVentas: 5, montoTotal: '250.00', cantidadEntradas: 12 },
+        { idPelicula: 2, titulo: 'Peli B', totalVentas: 3, montoTotal: '150.00', cantidadEntradas: 8 },
+      ],
+      total: 2,
+      limit: 10,
+      offset: 0,
+      hasMore: false, // 0+10 >= 2
+    });
+  });
+
+  it('porPeliculaPaginado por default filtra venta.estado = pagada', async () => {
+    const ventasQbData = buildQueryBuilderMock([]);
+    const detalleQb = buildQueryBuilderMock([]);
+    const ventasQbCount = buildQueryBuilderMock({ total: '0' });
+
+    const { service, ventasRepo } = buildService({ ventasQb: ventasQbData, detalleQb, detalleDulceriaQb: {} });
+    ventasRepo.createQueryBuilder
+      .mockReturnValueOnce(ventasQbData)
+      .mockReturnValueOnce(ventasQbCount);
+
+    await service.porPeliculaPaginado();
+
+    expect(ventasQbData.andWhere).toHaveBeenCalledWith('venta.estado = :estado', { estado: 'pagada' });
+  });
+
+  // --- Paginación porFuncion ---
+  it('porFuncionPaginado devuelve data + metadatos de paginación', async () => {
+    const ventasQbData = buildQueryBuilderMock([
+      { idFuncion: '10', titulo: 'Peli X', fecha: '2026-10-01', horaInicio: '18:00:00', totalVentas: '3', montoTotal: '150.00' },
+    ]);
+    const detalleQb = buildQueryBuilderMock([{ idFuncion: '10', cantidadEntradas: '8' }]);
+    const ventasQbCount = buildQueryBuilderMock({ total: '1' });
+
+    const { service, ventasRepo } = buildService({ ventasQb: ventasQbData, detalleQb, detalleDulceriaQb: {} });
+    ventasRepo.createQueryBuilder
+      .mockReturnValueOnce(ventasQbData)
+      .mockReturnValueOnce(ventasQbCount);
+
+    const resultado = await service.porFuncionPaginado({ limit: 5, offset: 0 });
+
+    expect(resultado).toEqual({
+      data: [{
+        idFuncion: 10,
+        titulo: 'Peli X',
+        fecha: '2026-10-01',
+        horaInicio: '18:00:00',
+        totalVentas: 3,
+        montoTotal: '150.00',
+        cantidadEntradas: 8,
+      }],
+      total: 1,
+      limit: 5,
+      offset: 0,
+      hasMore: false,
+    });
+  });
+
+  // --- Paginación porProducto ---
+  it('porProductoPaginado devuelve data + metadatos de paginación', async () => {
+    const detalleDulceriaQbData = buildQueryBuilderMock([
+      { idProducto: '1', nombre: 'Pochoclo', cantidadVendida: '15', montoTotal: '300.00' },
+      { idProducto: '2', nombre: 'Gaseosa', cantidadVendida: '10', montoTotal: '200.00' },
+    ]);
+    const detalleDulceriaQbCount = buildQueryBuilderMock({ total: '3' });
+
+    const { service, detalleDulceriaRepo } = buildService({ ventasQb: {}, detalleQb: {}, detalleDulceriaQb: detalleDulceriaQbData });
+    detalleDulceriaRepo.createQueryBuilder
+      .mockReturnValueOnce(detalleDulceriaQbData)
+      .mockReturnValueOnce(detalleDulceriaQbCount);
+
+    const resultado = await service.porProductoPaginado({ limit: 10, offset: 0 });
+
+    expect(resultado).toEqual({
+      data: [
+        { idProducto: 1, nombre: 'Pochoclo', cantidadVendida: 15, montoTotal: '300.00' },
+        { idProducto: 2, nombre: 'Gaseosa', cantidadVendida: 10, montoTotal: '200.00' },
+      ],
+      total: 3,
+      limit: 10,
+      offset: 0,
+      hasMore: false, // 0+10 >= 3
+    });
   });
 });
