@@ -119,7 +119,11 @@ export class IaGatewayService implements IaGatewayContract {
           break;
         }
         case 'crear_pago': {
-          resultado = await this.pagosService.crear(accion.datos);
+          // Con el actor: un cliente solo puede pagar SUS ventas (y solo en efectivo por esta vía; la tarjeta es Stripe, no el agente).
+          resultado = await this.pagosService.crear(accion.datos, {
+            idUsuario: contexto.idUsuario,
+            rol: contexto.rol,
+          });
           break;
         }
         case 'crear_promocion': {

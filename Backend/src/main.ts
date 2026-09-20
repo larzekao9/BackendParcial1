@@ -6,7 +6,8 @@ import { HttpExceptionFilter } from './shared/exceptions/http-exception.filter.j
 import type { AppConfig } from './config/env.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: el webhook de Stripe firma el cuerpo EXACTO que envía; sin los bytes originales no se puede verificar la firma.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix('api');
