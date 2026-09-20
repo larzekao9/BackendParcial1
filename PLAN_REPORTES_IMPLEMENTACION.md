@@ -119,7 +119,7 @@ construir los componentes/datos que hoy faltan.
 | **Errores** | 500/401/red → toast visible, no crash |
 | **Loading** | Skeletons/spinners por sección, no bloqueo global |
 | **Persistencia** | Recargar → filtros/paginación restaurados |
-| **Visual vs mockup** | ⚠️ Funcional 100% pero **layout difiere del mockup**: orden de secciones, KPIs con íconos, banner cyan, fila de 3 charts, grid 7/12+5/12. Ver "Checklist visual vs mockup" |
+| **Visual vs mockup** | ✅ Layout alineado (V1–V7, ver "Checklist visual vs mockup"). Pendiente: verificación visual manual en navegador (sin herramienta de screenshot en esta sesión) |
 | **Accesibilidad** | Tab navigation, aria-labels, contraste OK |
 
 ---
@@ -150,16 +150,16 @@ Comparado contra `vista de reportes/code.html` + tokens de `DESIGN.md` (la evalu
 
 | # | Pieza del mockup | Estado | Detalle |
 |---|---|---|---|
-| V1 | Badge `CU05 • DATOS REALES` + título + **subtítulo** "Análisis del rendimiento comercial…" | ⚠️ | Título y badge ✓; el **subtítulo** no está en `AdminReportes.tsx` |
+| V1 | Badge `CU05 • DATOS REALES` + título + **subtítulo** "Análisis del rendimiento comercial…" | ✅ Hecho (2026-09-20) | Subtítulo agregado en `AdminReportes.tsx` |
 | V2 | Pills de fechas + Agrupar + rango mono + Filtrar/Restablecer | ✅ | `ReportesFiltros.tsx` los implementa (en card aparte, equivalente) |
-| V3 | **Banner cyan de conciliación** ("Las ventas pendientes o canceladas no se computan…") + tag `CU05-RF08 COMPLIANT` | ⚠️ | Solo existe el banner de período (#11). El aviso de conciliación no está |
-| V4 | **4 KPIs con ícono-tile de color** + trend pill `↑ +28%` arriba derecha + footer descriptivo | ⚠️ | Los 4 KPIs con variación ↑/↓ ✓, pero sin ícono-tile ni pill top-right ni footer ("18 transacciones liquidadas") |
-| V5 | **Insights**: header `⚡ ANÁLISIS DEL PERÍODO & INSIGHTS` + 4 tiles con emoji | ⚠️ | Insights narrativos ✓, sin el header estilizado ni emojis |
-| V6 | **Fila de 3 charts en grid** (Evolución dual + Métodos con barras % + Promos con usos/descuento) | ⚠️ | Evolución dual-axis ✓ (`tipo="combinado"`), pero Métodos y Promos van como **cards debajo de las tablas** |
-| V7 | **Tablas grid 7/12 + 5/12** (Película + Dulcería) con barra `% TOTAL`, columna `ACCIÓN` y subtotal | ⚠️ | 3 tablas apiladas (película, función, producto) con **Exportar CSV** ✓; sin barras de % ni Detalle; la tabla de **función** no existe en el mockup |
+| V3 | **Banner cyan de conciliación** ("Las ventas pendientes o canceladas no se computan…") + tag `CU05-RF08 COMPLIANT` | ✅ Hecho (2026-09-20) | Banner + badge agregados debajo del resumen de período |
+| V4 | **4 KPIs con ícono-tile de color** + trend pill `↑ +28%` arriba derecha + footer descriptivo | ✅ Hecho (2026-09-20) | `renderKPI` rediseñado: tile de ícono (lucide-react), pill de tendencia arriba-derecha, footer descriptivo por KPI |
+| V5 | **Insights**: header `⚡ ANÁLISIS DEL PERÍODO & INSIGHTS` + 4 tiles con emoji | ✅ Hecho (2026-09-20) | `ReportesInsights.tsx`: header con ícono `Zap` + emoji por tipo de insight. Caption dice "Motor de reportes LUMEN" (no "Recomendación Inteligente" — las frases son reglas sobre datos reales, no IA, y llamarlo así sería engañoso) |
+| V6 | **Fila de 3 charts en grid** (Evolución dual + Métodos con barras % + Promos con usos/descuento) | ✅ Hecho (2026-09-20) | `AdminReportes.tsx`: grid `xl:grid-cols-3` con chart combinado + `ReportesCardMetodoPago` + `ReportesCardPromocion` en la misma fila |
+| V7 | **Tablas grid 7/12 + 5/12** (Película + Dulcería) con barra `% TOTAL`, columna `ACCIÓN` y subtotal | ✅ Hecho (2026-09-20) | `ReportesTablaPelicula`/`ReportesTablaProducto` reescritas: barra de `%`, toggle "Ordenar" (client-side sobre la página actual), columna `Acción → Detalle` (filtra "Ventas por función" por título, sin ruta de detalle inexistente), subtotal en dulcería. Grid 7/12+5/12 en `AdminReportes.tsx`. **Omitido a propósito:** columna `CATEGORÍA` (dulcería) y `PROD. DULCERÍA` (película) del mockup — no existen en `ReportePorProducto`/`ReportePorPelicula` reales, y no se fabrican datos falsos. "Ventas por función" no tiene equivalente en el mockup — se dejó como sección de detalle adicional debajo, filtrable desde "Detalle" |
 | V8 | Tipografía display (Outfit) | ⚠️ | Decisión (gap #18): mantener `Syne` |
 
-**Conclusión:** la **funcionalidad** está completa y probada; el **layout/estética** es una versión funcional propia que cubre el contenido del mockup pero no reproduce su orden ni varios adornos. Si la defensa exige match 1:1, reordenar `AdminReportes.tsx` (V1–V7) ≈ 3–4 h.
+**Conclusión:** la **funcionalidad** está completa y probada, y el **layout ahora reproduce el mockup** (V1–V7). Verificado con `tsc --noEmit`, 8 tests unitarios y `vite build`, todos en verde; falta la verificación visual manual en `http://localhost:3000/admin` (no hay herramienta de navegador en esta sesión para capturar pantalla). Limitaciones documentadas: `V5` (motor no es IA real) y `V7` (columnas que requerirían datos que el backend no expone, omitidas en vez de inventadas).
 
 ---
 
