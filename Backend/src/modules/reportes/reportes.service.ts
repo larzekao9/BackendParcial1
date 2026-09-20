@@ -3,12 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Venta } from '../../database/entities/venta.entity.js';
 import { DetalleVentaEntrada } from '../../database/entities/detalle-venta-entrada.entity.js';
+import { DetalleVentaDulceria } from '../../database/entities/detalle-venta-dulceria.entity.js';
+import { ProductoDulceria } from '../../database/entities/producto-dulceria.entity.js';
+import { Pago } from '../../database/entities/pago.entity.js';
+import { Promocion } from '../../database/entities/promocion.entity.js';
 
 export interface RangoFechas {
   /** ISO `YYYY-MM-DD`, inclusiva. */
   desde?: string;
   /** ISO `YYYY-MM-DD`, inclusiva. */
   hasta?: string;
+  /** Si true, incluye estados no pagados (pendiente, confirmada, pendiente_pago, anulada, cancelada). Default: false (solo pagada). */
+  incluirNoPagadas?: boolean;
 }
 
 export interface ResumenVentas {
@@ -33,6 +39,40 @@ export interface ReportePorFuncion {
   totalVentas: number;
   montoTotal: string;
   cantidadEntradas: number;
+}
+
+export interface ReportePorProducto {
+  idProducto: number;
+  nombre: string;
+  cantidadVendida: number;
+  montoTotal: string;
+}
+
+export interface ReportePorMetodoPago {
+  metodoPago: string;
+  totalVentas: number;
+  montoTotal: string;
+}
+
+export interface ReportePorPromocion {
+  idPromocion: number;
+  nombre: string;
+  tipoDescuento: string;
+  totalVentas: number;
+  montoDescuento: string;
+}
+
+export interface DashboardMetrica {
+  actual: number;
+  anterior: number;
+  /** `null` cuando el periodo anterior es 0 (no hay base para calcular %). */
+  variacionPorcentual: string | null;
+}
+
+export interface DashboardResponse {
+  montoTotal: DashboardMetrica;
+  totalVentas: DashboardMetrica;
+  cantidadEntradas: DashboardMetrica;
 }
 
 /**
@@ -61,6 +101,8 @@ export class ReportesService {
     private readonly ventasRepo: Repository<Venta>,
     @InjectRepository(DetalleVentaEntrada)
     private readonly detalleRepo: Repository<DetalleVentaEntrada>,
+    @InjectRepository(DetalleVentaDulceria)
+    private readonly detalleDulceriaRepo: Repository<DetalleVentaDulceria>,
   ) {}
 
   async resumenVentas(filtro: RangoFechas = {}): Promise<ResumenVentas> {
@@ -69,6 +111,7 @@ export class ReportesService {
       .select('COUNT(venta.idVenta)', 'totalVentas')
       .addSelect('COALESCE(SUM(venta.total), 0)', 'montoTotal');
     this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
     const filaVentas = await qbVentas.getRawOne<{ totalVentas: string; montoTotal: string }>();
 
     const qbEntradas = this.detalleRepo
@@ -76,6 +119,7 @@ export class ReportesService {
       .innerJoin('detalle.venta', 'venta')
       .select('COUNT(detalle.idDetalle)', 'cantidadEntradas');
     this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
     const filaEntradas = await qbEntradas.getRawOne<{ cantidadEntradas: string }>();
 
     return {
@@ -97,6 +141,7 @@ export class ReportesService {
       .groupBy('pelicula.idPelicula')
       .addGroupBy('pelicula.titulo');
     this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
     const filasVentas = await qbVentas.getRawMany<{
       idPelicula: string;
       titulo: string;
@@ -112,6 +157,7 @@ export class ReportesService {
       .addSelect('COUNT(detalle.idDetalle)', 'cantidadEntradas')
       .groupBy('funcion.idPelicula');
     this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
     const filasEntradas = await qbEntradas.getRawMany<{ idPelicula: string; cantidadEntradas: string }>();
 
     const entradasPorPelicula = new Map(
@@ -143,6 +189,7 @@ export class ReportesService {
       .addGroupBy('funcion.fecha')
       .addGroupBy('funcion.horaInicio');
     this.filtrarPorRango(qbVentas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbVentas, 'venta.estado', filtro);
     const filasVentas = await qbVentas.getRawMany<{
       idFuncion: string;
       titulo: string;
@@ -159,6 +206,7 @@ export class ReportesService {
       .addSelect('COUNT(detalle.idDetalle)', 'cantidadEntradas')
       .groupBy('venta.idFuncion');
     this.filtrarPorRango(qbEntradas, 'venta.fechaHora', filtro);
+    this.filtrarEstado(qbEntradas, 'venta.estado', filtro);
     const filasEntradas = await qbEntradas.getRawMany<{ idFuncion: string; cantidadEntradas: string }>();
 
     const entradasPorFuncion = new Map(
@@ -188,4 +236,190 @@ export class ReportesService {
       qb.andWhere(`CAST(${columna} AS date) <= :hasta`, { hasta: filtro.hasta });
     }
   }
+
+  private filtrarEstado(
+    qb: { andWhere: (condicion: string, parametros: Record<string, unknown>) => unknown },
+    columna: string,
+    filtro: RangoFechas,
+  ): void {
+    // Default: solo ventas 'pagada' (dinero real cobrado).
+    // Si incluirNoPagadas = true, no filtrar por estado.
+    if (!filtro.incluirNoPagadas) {
+      qb.andWhere(`${columna} = :estado`, { estado: 'pagada' });
+    }
+  }
+
+async porProducto(filtro: RangoFechas = {}): Promise<ReportePorProducto[]> {
+     const qb = this.detalleDulceriaRepo
+       .createQueryBuilder('detalle')
+       .innerJoin('detalle.venta', 'venta')
+       .innerJoin('detalle.producto', 'producto')
+       .select('producto.idProducto', 'idProducto')
+       .addSelect('producto.nombre', 'nombre')
+       .addSelect('SUM(detalle.cantidad)', 'cantidadVendida')
+       .addSelect('COALESCE(SUM(detalle.cantidad * detalle.precio_unitario), 0)', 'montoTotal')
+       .groupBy('producto.idProducto')
+       .addGroupBy('producto.nombre');
+     this.filtrarPorRango(qb, 'venta.fechaHora', filtro);
+     this.filtrarEstado(qb, 'venta.estado', filtro);
+     const filas = await qb.getRawMany<{
+       idProducto: string;
+       nombre: string;
+       cantidadVendida: string;
+       montoTotal: string;
+     }>();
+
+     return filas.map((fila) => ({
+       idProducto: Number(fila.idProducto),
+       nombre: fila.nombre,
+       cantidadVendida: Number(fila.cantidadVendida),
+       montoTotal: Number(fila.montoTotal).toFixed(2),
+     }));
+   }
+
+   async porMetodoPago(filtro: RangoFechas = {}): Promise<ReportePorMetodoPago[]> {
+     const qb = this.ventasRepo
+       .createQueryBuilder('venta')
+       .innerJoin('venta.pagos', 'pago')
+       .select('pago.metodoPago', 'metodoPago')
+       .addSelect('COUNT(venta.idVenta)', 'totalVentas')
+       .addSelect('COALESCE(SUM(venta.total), 0)', 'montoTotal')
+       .groupBy('pago.metodoPago');
+     this.filtrarPorRango(qb, 'venta.fechaHora', filtro);
+     this.filtrarEstado(qb, 'venta.estado', filtro);
+     // Only successful payments
+     qb.andWhere('pago.estado = :estadoPago', { estadoPago: 'exitoso' });
+     const filas = await qb.getRawMany<{
+       metodoPago: string;
+       totalVentas: string;
+       montoTotal: string;
+     }>();
+
+     return filas.map((fila) => ({
+       metodoPago: fila.metodoPago,
+       totalVentas: Number(fila.totalVentas),
+       montoTotal: Number(fila.montoTotal).toFixed(2),
+     }));
+   }
+
+   async porPromocion(filtro: RangoFechas = {}): Promise<ReportePorPromocion[]> {
+     const qb = this.ventasRepo
+       .createQueryBuilder('venta')
+       .innerJoin('venta.promocion', 'promocion')
+       .select('promocion.idPromocion', 'idPromocion')
+       .addSelect('promocion.nombre', 'nombre')
+       .addSelect('promocion.tipoDescuento', 'tipoDescuento')
+       .addSelect('COUNT(venta.idVenta)', 'totalVentas')
+       .addSelect('COALESCE(SUM(venta.descuentoAplicado), 0)', 'montoDescuento')
+       .groupBy('promocion.idPromocion')
+       .addGroupBy('promocion.nombre')
+       .addGroupBy('promocion.tipoDescuento');
+     this.filtrarPorRango(qb, 'venta.fechaHora', filtro);
+     this.filtrarEstado(qb, 'venta.estado', filtro);
+     const filas = await qb.getRawMany<{
+       idPromocion: string;
+       nombre: string;
+       tipoDescuento: string;
+       totalVentas: string;
+       montoDescuento: string;
+     }>();
+
+     return filas.map((fila) => ({
+       idPromocion: Number(fila.idPromocion),
+       nombre: fila.nombre,
+       tipoDescuento: fila.tipoDescuento,
+       totalVentas: Number(fila.totalVentas),
+       montoDescuento: Number(fila.montoDescuento).toFixed(2),
+     }));
+   }
+
+  /**
+   * RF08/CU05 — resumen comparado contra el periodo anterior de igual longitud
+   * (ej. si `desde`/`hasta` cubren 7 días, compara contra los 7 días previos).
+   * Sin `desde`/`hasta`, el periodo actual es la ventana de los últimos 7 días
+   * terminando hoy (default razonable para la vista principal). Reutiliza
+   * `resumenVentas`, así que hereda el filtro de estado (`pagada` por default).
+   */
+  async dashboard(filtro: RangoFechas = {}): Promise<DashboardResponse> {
+    const { actualDesde, actualHasta, anteriorDesde, anteriorHasta } = this.calcularPeriodosComparables(filtro);
+
+    const resumenActual = await this.resumenVentas({
+      desde: actualDesde,
+      hasta: actualHasta,
+      incluirNoPagadas: filtro.incluirNoPagadas,
+    });
+    const resumenAnterior = await this.resumenVentas({
+      desde: anteriorDesde,
+      hasta: anteriorHasta,
+      incluirNoPagadas: filtro.incluirNoPagadas,
+    });
+
+    const montoActual = Number(resumenActual.montoTotal);
+    const montoAnterior = Number(resumenAnterior.montoTotal);
+
+    return {
+      montoTotal: {
+        actual: montoActual,
+        anterior: montoAnterior,
+        variacionPorcentual: calcularVariacion(montoActual, montoAnterior),
+      },
+      totalVentas: {
+        actual: resumenActual.totalVentas,
+        anterior: resumenAnterior.totalVentas,
+        variacionPorcentual: calcularVariacion(resumenActual.totalVentas, resumenAnterior.totalVentas),
+      },
+      cantidadEntradas: {
+        actual: resumenActual.cantidadEntradas,
+        anterior: resumenAnterior.cantidadEntradas,
+        variacionPorcentual: calcularVariacion(
+          resumenActual.cantidadEntradas,
+          resumenAnterior.cantidadEntradas,
+        ),
+      },
+    };
+  }
+
+  /** Deriva el periodo actual (default: últimos 7 días terminando hoy) y el anterior de igual longitud. */
+  private calcularPeriodosComparables(filtro: RangoFechas): {
+    actualDesde: string;
+    actualHasta: string;
+    anteriorDesde: string;
+    anteriorHasta: string;
+  } {
+    const MS_DIA = 24 * 60 * 60 * 1000;
+    const hoy = new Date();
+    const hasta = filtro.hasta ? aMediaNoche(filtro.hasta) : hoy;
+    const desde = filtro.desde
+      ? aMediaNoche(filtro.desde)
+      : new Date(hasta.getTime() - 6 * MS_DIA);
+
+    const duracionDias = Math.round((hasta.getTime() - desde.getTime()) / MS_DIA) + 1;
+    const anteriorDesde = new Date(desde.getTime() - duracionDias * MS_DIA);
+    const anteriorHasta = new Date(hasta.getTime() - duracionDias * MS_DIA);
+
+    return {
+      actualDesde: aISO(desde),
+      actualHasta: aISO(hasta),
+      anteriorDesde: aISO(anteriorDesde),
+      anteriorHasta: aISO(anteriorHasta),
+    };
+  }
+}
+
+/** `((actual - anterior) / anterior) * 100`, con 1 decimal. `null` cuando `anterior === 0` (sin base). */
+function calcularVariacion(actual: number, anterior: number): string | null {
+  if (anterior === 0) return null;
+  return (((actual - anterior) / anterior) * 100).toFixed(1);
+}
+
+/** `'YYYY-MM-DD'` → `Date` a las 00:00:00 local (mismo criterio que el filtro de rango). */
+function aMediaNoche(iso: string): Date {
+  return new Date(`${iso}T00:00:00`);
+}
+
+/** `Date` → `YYYY-MM-DD` en hora local (evita el corrimiento de `toISOString`/UTC). */
+function aISO(fecha: Date): string {
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${fecha.getFullYear()}-${mes}-${dia}`;
 }

@@ -15,6 +15,12 @@ export class ReportesController {
   }
 
   @Roles('administrador')
+  @Get('dashboard')
+  dashboard(@Query() filtro: RangoFechasDto) {
+    return this.reportesService.dashboard(filtro);
+  }
+
+  @Roles('administrador')
   @Get('por-pelicula')
   porPelicula(@Query() filtro: RangoFechasDto) {
     return this.reportesService.porPelicula(filtro);
@@ -25,4 +31,22 @@ export class ReportesController {
   porFuncion(@Query() filtro: RangoFechasDto) {
     return this.reportesService.porFuncion(filtro);
   }
+
+  @Roles('administrador')
+@Get('por-producto')
+   porProducto(@Query() filtro: RangoFechasDto) {
+     return this.reportesService.porProducto(filtro);
+   }
+
+   @Roles('administrador')
+   @Get('por-metodo-pago')
+   porMetodoPago(@Query() filtro: RangoFechasDto) {
+     return this.reportesService.porMetodoPago(filtro);
+   }
+
+   @Roles('administrador')
+   @Get('por-promocion')
+   porPromocion(@Query() filtro: RangoFechasDto) {
+     return this.reportesService.porPromocion(filtro);
+   }
 }

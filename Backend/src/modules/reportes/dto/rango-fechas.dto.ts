@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsBoolean, IsDateString, IsOptional } from 'class-validator';
 
 /** `desde`/`hasta` son fechas ISO (`YYYY-MM-DD`), ambas inclusivas, ambas opcionales. */
 export class RangoFechasDto {
@@ -9,4 +9,8 @@ export class RangoFechasDto {
   @IsOptional()
   @IsDateString()
   hasta?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  incluirNoPagadas?: boolean;
 }
