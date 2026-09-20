@@ -213,7 +213,8 @@ describe('IaGatewayService (RF10)', () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(pagosService.crear).toHaveBeenCalledWith(accion.datos);
+    // Se pasa el actor (quien habla, según el token del agente) para que el cliente solo pueda pagar SUS ventas.
+    expect(pagosService.crear).toHaveBeenCalledWith(accion.datos, expect.objectContaining({ idUsuario: 15 }));
     expect(auditService.log).toHaveBeenCalledWith(15, 'ia_crear_pago', 'servidor_local');
   });
 

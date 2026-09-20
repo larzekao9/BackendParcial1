@@ -44,15 +44,15 @@ tabla antes que en comentarios de commits anteriores.
   (raíz del repo, no `docs/` — el puntero anterior apuntaba mal).
 - **Luis Blanco** — sus módulos completos: `funciones` (CRUD + anti-solapamiento +
   `GET /funciones/:id/disponibilidad`), `ventas` (flujo transaccional RF03/RF19,
-  con test de concurrencia real), `reportes` (3 endpoints), `pagos` en **alcance
-  mínimo a propósito** (efectivo/tarjeta, confirmación instantánea sin pasarela
-  externa — verificado end-to-end desde el frontend). **Pendiente, fuera de
-  alcance por decisión del equipo** (ver "Nota de alcance" en `plan-backend.md`):
-  Stripe y QR reales (`POST /pagos/webhook/stripe`, `POST /pagos/:id/confirmar-qr`
-  no existen todavía; la tabla `pagos` ya tiene las columnas listas). **Ojo:** RF04
-  en `CLAUDE.md` marca el pago con Stripe/QR como prioridad "Indispensable", no
-  opcional — confirmar con el equipo si esto se implementa antes de la defensa o
-  si el recorte se explica y se acepta tal cual en la presentación.
+  con test de concurrencia real), `reportes` (3 endpoints), `pagos`: **efectivo** (lo
+  registra el propio sistema; un cliente solo paga SUS ventas) y **tarjeta con Stripe en
+  modo prueba** (2026-09-19): `POST /pagos/stripe/iniciar`, `POST /pagos/:id/verificar`
+  y `POST /pagos/webhook/stripe`. La venta solo pasa a `pagada` cuando Stripe confirma el
+  cobro (webhook firmado o consulta del servidor a Stripe), nunca por lo que diga el
+  navegador o el agente de voz. Sin claves de Stripe (`STRIPE_*` en `.env`, ver
+  `.env.example`) el backend arranca igual y solo queda el efectivo. Las ventas que nadie
+  paga se cancelan solas a los 10 min y liberan sus asientos. **Sigue fuera de alcance:**
+  el QR (`POST /pagos/:id/confirmar-qr` no existe).
 - **Roly** — `audit` (RF12) completo, con IP registrada: `AuditService`,
   `AuditInterceptor` global (`@Audit(...)` en el handler) y `GET /audit/log-acciones`.
   `ia-gateway` (RF10) completo: `POST /ia-gateway/acciones`, `@Public()` (sin JWT —

@@ -22,6 +22,21 @@ export interface AppConfig {
   /** Audience esperado al verificar el ID token de Google — ver auth.service.ts. */
   googleClientId: string;
   nivelDespliegue: 'servidor_local' | 'maquina_local' | 'movil_ligero';
+  /** Pago con tarjeta en línea (RF04). Vacío = deshabilitado: ver `StripeService.habilitado`. */
+  stripe: {
+    secretKey: string;
+    publishableKey: string;
+    webhookSecret: string;
+    moneda: 'bob' | 'usd' | 'eur';
+    /** Bolivianos por 1 unidad de `moneda` (1 si se cobra en bolivianos). */
+    tipoCambio: number;
+  };
+  pagos: {
+    /** Minutos que una venta puede quedar `pendiente_pago` antes de cancelarse y liberar sus asientos. */
+    pendienteTtlMin: number;
+    /** Cada cuántos segundos corre el barrido de ventas vencidas (0 = no corre). */
+    barridoSeg: number;
+  };
 }
 
 export default (): AppConfig => ({
@@ -43,4 +58,15 @@ export default (): AppConfig => ({
   nivelDespliegue:
     (process.env.NIVEL_DESPLIEGUE as AppConfig['nivelDespliegue']) ??
     'servidor_local',
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? '',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+    moneda: (process.env.STRIPE_MONEDA as AppConfig['stripe']['moneda']) ?? 'bob',
+    tipoCambio: parseFloat(process.env.STRIPE_TIPO_CAMBIO || '1'),
+  },
+  pagos: {
+    pendienteTtlMin: parseInt(process.env.PAGO_PENDIENTE_TTL_MIN ?? '10', 10),
+    barridoSeg: parseInt(process.env.PAGO_BARRIDO_SEG ?? '60', 10),
+  },
 });

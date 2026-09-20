@@ -4,6 +4,7 @@ import type { Promocion } from '../database/entities/promocion.entity.js';
 import type { ProductoDulceria } from '../database/entities/producto-dulceria.entity.js';
 import type { Funcion, EstadoFuncion } from '../database/entities/funcion.entity.js';
 import type { Venta, TipoRegistroVenta, MetodoPago } from '../database/entities/venta.entity.js';
+import type { EstadoPago } from '../database/entities/pago.entity.js';
 
 /**
  * Contrato de Fase 0 — acordado entre Luis Ángel, Luis Blanco y Roly antes
@@ -132,19 +133,64 @@ export interface VentasContract {
 
 export interface CrearPagoInput {
   idVenta: number;
-  /** `stripe`/`qr` quedan rechazados por PagosService.crear hasta implementarlos (ver pagos.service.ts). */
+  /**
+   * `efectivo` y `tarjeta` (POS físico) los registra el propio sistema; `stripe` NO pasa por acá: se inicia con
+   * `iniciarStripe` y solo lo confirma Stripe. `qr` no está implementado (ver pagos.service.ts).
+   */
   metodo: MetodoPago;
+}
+
+/** Quién pide la operación de pago (sale del JWT, o del ia-gateway cuando la acción viene del agente de voz). */
+export interface ActorPago {
+  idUsuario: number;
+  rol: 'cliente' | 'administrador';
+}
+
+export interface ConfiguracionPagos {
+  stripe: { habilitado: boolean; clavePublicable: string; moneda: string };
+}
+
+export interface IniciarPagoStripeResultado {
+  idPago: number;
+  idVenta: number;
+  /** Secreto del PaymentIntent: solo lo necesita el formulario de Stripe del navegador de quien paga. */
+  clientSecret: string;
+  /** Monto y moneda REALES del cobro (`monto` con 2 decimales). */
+  monto: string;
+  moneda: string;
+}
+
+export interface VerificacionPago {
+  estado: EstadoPago;
+  /** La venta tal como quedó en la base (`estado === 'pagada'` solo si Stripe confirmó el cobro). */
+  venta: Venta;
+  /** Motivo del rechazo, si el intento falló. */
+  mensaje: string | null;
 }
 
 export interface PagosContract {
   /**
-   * Pago controlado por el propio sistema (sin pasarela externa todavía) — RF04.
-   * Rechaza con 404 si la venta no existe, 409 si `venta.estado !== 'pendiente_pago'`,
-   * 400 si `metodo` no es `'efectivo'` ni `'tarjeta'`. Inserta un `Pago` en estado
-   * `'exitoso'` y actualiza la venta a `estado='pagada'` dentro de una transacción.
+   * Pago controlado por el propio sistema — RF04. Rechaza con 404 si la venta no existe, 409 si
+   * `venta.estado !== 'pendiente_pago'`, 400 si `metodo` no es `'efectivo'` ni `'tarjeta'`, 403 si un
+   * `cliente` intenta pagar una venta ajena o registrar una `tarjeta` física (solo la caja). Inserta un
+   * `Pago` en estado `'exitoso'` y actualiza la venta a `estado='pagada'` dentro de una transacción.
    * Devuelve la Venta ya actualizada (no el Pago).
    */
-  crear(input: CrearPagoInput): Promise<Venta>;
+  crear(input: CrearPagoInput, actor?: ActorPago): Promise<Venta>;
+
+  /** Tarjeta en línea (Stripe, modo prueba): abre o retoma el cobro de una venta pendiente y devuelve el `clientSecret`. */
+  iniciarStripe(idVenta: number, actor: ActorPago): Promise<IniciarPagoStripeResultado>;
+
+  /** Pregunta a Stripe cómo quedó el intento y aplica el resultado; único camino (junto al webhook) a `pagada` con tarjeta. */
+  verificarStripe(idPago: number, actor: ActorPago): Promise<VerificacionPago>;
+
+  /** Webhook firmado de Stripe. */
+  procesarWebhookStripe(cuerpoCrudo: Buffer | undefined, firma: string | undefined): Promise<{ received: true }>;
+
+  /** Cancela una venta sin pagar y libera sus asientos (idempotente; 409 si ya está pagada). */
+  cancelarPendiente(idVenta: number, actor?: ActorPago, motivo?: string): Promise<Venta>;
+
+  configuracion(): ConfiguracionPagos;
 }
 
 // ---- Roly — usado por ia-gateway para ejecutar acciones confirmadas ------

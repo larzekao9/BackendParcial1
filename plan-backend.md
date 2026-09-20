@@ -34,6 +34,14 @@ al final del trabajo de Roly, no al principio.
 > solo agrega el campo opcional a `CrearProductoDto`/`ActualizarProductoDto`, no
 > reabre alcance nuevo.
 >
+> **Actualización (2026-09-19) — Stripe implementado en modo prueba:** `pagos` ya no es
+> solo el cobro controlado. La tarjeta se paga con Stripe (`POST /pagos/stripe/iniciar`,
+> `POST /pagos/:id/verificar`, `POST /pagos/webhook/stripe`) y la venta solo queda `pagada`
+> cuando Stripe lo confirma. El efectivo sigue igual, pero un cliente ya no puede pagar la
+> venta de otra persona ni registrar una "tarjeta" física (eso es de la caja). Además las
+> ventas sin pagar se cancelan a los 10 min y liberan sus asientos. Sin cambios de esquema.
+> El QR sigue fuera de alcance. Lo de abajo describe el alcance del 2026-09-10.
+>
 > **Actualización (2026-09-10) — `pagos` implementado (alcance mínimo):** se cerró el
 > único módulo pendiente de Luis Blanco. `PagosService.crear` confirma el cobro al
 > instante para `efectivo`/`tarjeta` (sin pasarela externa) y marca la venta como
