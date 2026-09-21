@@ -41,7 +41,9 @@ export interface AppConfig {
 
 export default (): AppConfig => ({
   nodeEnv: (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development',
-  port: parseInt(process.env.PORT ?? '3000', 10),
+  // 3333 por defecto: el 3000 es del frontend (único origen autorizado en el login con Google). Con 3000 acá, un `.env` sin PORT hacía
+  // que el backend ocupara el puerto del frontend y Vite se corriera al 3001 (login roto con `origin_mismatch`).
+  port: parseInt(process.env.PORT ?? '3333', 10),
   database: {
     host: process.env.DB_HOST ?? 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),

@@ -22,7 +22,7 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const port = config.get<AppConfig['port']>('port') ?? 3000;
+  const port = config.get<AppConfig['port']>('port') ?? 3333;
   await app.listen(port);
   console.log(`Backend escuchando en http://localhost:${port}/api`);
 }

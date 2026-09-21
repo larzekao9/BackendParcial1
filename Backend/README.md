@@ -11,7 +11,7 @@ trabajo y el contrato entre módulos.
 cp .env.example .env          # ajustar si hace falta
 docker compose up -d db       # levanta Postgres y aplica base_datos_cine_ia.sql
 npm install
-npm run start:dev             # http://localhost:3000/api
+npm run start:dev             # http://localhost:3333/api (el 3000 es del frontend)
 ```
 
 Para probar el login hace falta al menos un usuario en la tabla `usuarios`
@@ -22,7 +22,7 @@ espera al CRUD de `usuarios` de la Fase 1):
 docker exec cine_ia_db psql -U postgres -d cine_ia -c \
   "INSERT INTO usuarios (nombre, rol, metodo_auth) VALUES ('admin_test','administrador','simplificado');"
 
-curl -s -X POST http://localhost:3000/api/auth/login \
+curl -s -X POST http://localhost:3333/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"nombre":"admin_test","rol":"administrador"}'
 ```
