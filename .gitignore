@@ -53,3 +53,7 @@ Backend/*.tsbuildinfo
 *.xml
 *.xmi
 
+# Proyecto de ejemplo de Flutter (`flutter create test_tmp`) que se coló por accidente: no es parte del Sistema de Cine.
+# (Ya se borró; el patrón evita que vuelva a entrar.)
+test_tmp/
+
