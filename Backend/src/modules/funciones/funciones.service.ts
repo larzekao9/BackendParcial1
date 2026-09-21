@@ -86,15 +86,23 @@ export class FuncionesService implements FuncionesContract {
   }
 
   async buscarPorId(idFuncion: number): Promise<Funcion> {
-    const funcion = await this.funcionesRepo.findOne({ where: { idFuncion } });
+    const funcion = await this.funcionesRepo.findOne({ where: { idFuncion }, relations: { sala: true } });
     if (!funcion) {
       throw new NotFoundException(`No existe una función con id ${idFuncion}.`);
     }
     return funcion;
   }
 
+  /**
+   * Trae `sala` (relations: { sala: true }) para que GET /funciones (pública, RF01) ya
+   * incluya `sala.tipo` sin que el frontend necesite un segundo fetch autenticado
+   * a GET /salas — la cartelera se ve sin login, ver funciones.controller.ts.
+   */
   async listar(): Promise<Funcion[]> {
-    return this.funcionesRepo.find({ order: { fecha: 'ASC', horaInicio: 'ASC' } });
+    return this.funcionesRepo.find({
+      relations: { sala: true },
+      order: { fecha: 'ASC', horaInicio: 'ASC' },
+    });
   }
 
   async listarDisponibilidad(idFuncion: number): Promise<DisponibilidadAsiento[]> {
