@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Precio } from '../../database/entities/precio.entity.js';
@@ -76,6 +76,7 @@ export class PreciosService implements PreciosContract {
   }
 
   async crear(dto: CrearPrecioDto): Promise<Precio> {
+    this.validarVigenciaOrdenada(dto.vigenteDesde, dto.vigenteHasta ?? null);
     const precio = this.preciosRepo.create({
       valor: dto.valor.toString(),
       vigenteDesde: dto.vigenteDesde,
@@ -99,8 +100,20 @@ export class PreciosService implements PreciosContract {
       // dto.valor llega como number; la entidad lo guarda como string.
       cambios.valor = cambios.valor.toString();
     }
+
+    const vigenteDesdeEfectiva = (cambios.vigenteDesde as string | undefined) ?? precio.vigenteDesde;
+    const vigenteHastaEfectiva = 'vigenteHasta' in cambios ? (cambios.vigenteHasta as string | null) : precio.vigenteHasta;
+    this.validarVigenciaOrdenada(vigenteDesdeEfectiva, vigenteHastaEfectiva);
+
     Object.assign(precio, cambios);
     return this.preciosRepo.save(precio);
+  }
+
+  /** Mismo criterio que `FuncionesService.validarHoraFinPosterior`: se rechaza acá, antes de llegar a la base, con un 400 legible. */
+  private validarVigenciaOrdenada(vigenteDesde: string, vigenteHasta: string | null): void {
+    if (vigenteHasta && vigenteHasta < vigenteDesde) {
+      throw new BadRequestException('vigenteHasta debe ser igual o posterior a vigenteDesde.');
+    }
   }
 
   async eliminar(idPrecio: number): Promise<void> {

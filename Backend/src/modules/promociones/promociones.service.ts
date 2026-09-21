@@ -1,7 +1,7 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { Promocion } from '../../database/entities/promocion.entity.js';
+import { Promocion, type TipoDescuento } from '../../database/entities/promocion.entity.js';
 import { PromocionFuncion } from '../../database/entities/promocion-funcion.entity.js';
 import { Funcion } from '../../database/entities/funcion.entity.js';
 import { Venta } from '../../database/entities/venta.entity.js';
@@ -140,6 +140,7 @@ export class PromocionesService implements PromocionesContract {
   }
 
   async crear(dto: CrearPromocionDto): Promise<Promocion> {
+    this.validarPromocion(dto.tipoDescuento, dto.valor, dto.fechaInicio, dto.fechaFin);
     const promocion = this.promocionesRepo.create({
       nombre: dto.nombre,
       descripcion: dto.descripcion ?? null,
@@ -163,12 +164,29 @@ export class PromocionesService implements PromocionesContract {
     const cambios = Object.fromEntries(
       Object.entries(dto).filter(([, valor]) => valor !== undefined),
     ) as Record<string, unknown>;
+
+    const tipoDescuentoEfectivo = (cambios.tipoDescuento as TipoDescuento | undefined) ?? promocion.tipoDescuento;
+    const valorEfectivo = typeof cambios.valor === 'number' ? cambios.valor : Number(promocion.valor);
+    const fechaInicioEfectiva = (cambios.fechaInicio as string | undefined) ?? promocion.fechaInicio;
+    const fechaFinEfectiva = (cambios.fechaFin as string | undefined) ?? promocion.fechaFin;
+    this.validarPromocion(tipoDescuentoEfectivo, valorEfectivo, fechaInicioEfectiva, fechaFinEfectiva);
+
     if (typeof cambios.valor === 'number') {
       // dto.valor llega como number; la entidad lo guarda como string.
       cambios.valor = cambios.valor.toString();
     }
     Object.assign(promocion, cambios);
     return this.promocionesRepo.save(promocion);
+  }
+
+  /** Mismo criterio que `FuncionesService.validarHoraFinPosterior`: se rechaza acá, antes de llegar a la base, con un 400 legible. */
+  private validarPromocion(tipoDescuento: TipoDescuento, valor: number, fechaInicio: string, fechaFin: string): void {
+    if (tipoDescuento === 'porcentaje' && valor > 100) {
+      throw new BadRequestException('Un descuento porcentual no puede superar 100.');
+    }
+    if (fechaFin < fechaInicio) {
+      throw new BadRequestException('fechaFin debe ser igual o posterior a fechaInicio.');
+    }
   }
 
   async eliminar(idPromocion: number): Promise<void> {
