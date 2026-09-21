@@ -8,10 +8,10 @@ import { CrearVentaDto } from './dto/crear-venta.dto.js';
 /**
  * CU02 — todos los endpoints requieren JWT (guard global); no hay ruta abierta a
  * anónimos porque comprar y consultar ventas siempre son acciones de un rol conocido
- * (RF11). `idUsuarioCliente` nunca sale del body: para un `cliente` es su propio
- * `sub` del JWT; para un `administrador` (venta manual/mostrador) se deja `null`
- * (venta anónima, ver comentario en venta.entity.ts) — nunca se confía en que el
- * cliente pueda comprar "a nombre de" otro usuario.
+ * (RF11). `idUsuarioCliente` nunca sale del body: es siempre el `sub` del JWT de quien
+ * compra, sea cliente o administrador — así la compra queda a nombre de la sesión que la
+ * hizo y aparece en SU "Mis compras" (una venta con `null` no le aparecería a nadie). Nunca
+ * se confía en que se pueda comprar "a nombre de" otro usuario.
  */
 @Controller('ventas')
 export class VentasController {
@@ -20,8 +20,18 @@ export class VentasController {
   @Roles('cliente', 'administrador')
   @Post()
   crear(@Body() dto: CrearVentaDto, @CurrentUser() usuario: JwtPayload) {
-    const idUsuarioCliente = usuario.rol === 'cliente' ? usuario.sub : null;
-    return this.ventasService.crear({ ...dto, idUsuarioCliente }, usuario.sub);
+    return this.ventasService.crear({ ...dto, idUsuarioCliente: usuario.sub }, usuario.sub);
+  }
+
+  /**
+   * "Mis compras": SOLO las ventas de la sesión, sea cual sea el rol (un administrador que
+   * compró también ve las suyas, no las de todos). Va antes de `:id` para que "mis-compras"
+   * no se interprete como un id.
+   */
+  @Roles('cliente', 'administrador')
+  @Get('mis-compras')
+  misCompras(@CurrentUser() usuario: JwtPayload) {
+    return this.ventasService.listar(usuario.sub);
   }
 
   /** Un `cliente` solo ve sus propias ventas; un `administrador` las ve todas (RF11). */
